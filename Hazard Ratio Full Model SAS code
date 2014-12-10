@@ -1,0 +1,127 @@
+data sas.projstrokegrsfu;
+set sas.projcvdgrs;
+if stroke_base=0 then output;
+wGRSbsd=wGRSb;wGRSirsd=wGRSir;wGRSt50sd=wGRSt50 ;
+run;
+PROC STANDARD DATA=sas.projstrokegrsfu MEAN=0 STD=1 OUT=sas.projt2dcvdgrs;
+  VAR wGRSbsd wGRSirsd wGRSt50sd ;
+RUN;
+
+%macro quint(dsn,var,quintvar);
+
+/*cox regression macro*/
+%LET RunType = run;           
+%LET Analysis = simple; *Required   simple /     age-stratified   /  Multi-age group  ;
+%LET Project = Proj;
+%LET ProjDesc = Project Description;
+%LET RunDesc = Run Description;
+%LET InputDir =\\10.141.0.2\Kadoorie\weigan\DATASETS\SAS;            *Required;
+%LET InputFile = projstrokegrsfu;                                            *Required;     
+%LET OutputDir = \\10.141.0.2\Kadoorie\weigan\cvd;
+%LET ID =   IID;
+/*Part 2.*/
+%LET LowFU   =;
+%LET HighFU  = ;
+%LET StartDate = 1JAN2004;
+%LET EndDate =  31DEC2013;
+%LET LowAge  = 35;
+%LET HighAge = 79;
+%LET WhereStmt = ;
+/*Part 3.*/
+%LET Outcome = cvdallevent;  *Required;
+%LET CensorValue =  	0;                          
+%LET CensorDate = censoring_date;
+%LET StudyDate =  study_date;
+%LET TimeUnit = day ;                             *Required; 
+%LET TimeVar = Time_in Time_out ;                     *Required;   
+/*Part 4.*/
+%LET RF  =wGRSbqt wGRSirqt wGRSt50qt uwGRSbqt uwGRSirqt uwGRSt50qt; 
+%LET RFband =	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	;
+%LET RFmid  = 	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	;
+%LET Cent = 	NA	NA	NA	NA	NA	NA;
+%LET RFbase =	first first	first	first	first	first;
+/*Part 5.*/
+%LET Covars =  age sex region smoking alcohol met_cat income htn diabetesall bmi sbp_mean/*fh_cvd*/; 
+%LET CovClass =	0 	1	1		1		1		1		1		1	1			0	0	;      /* 1*/; 
+%LET CovOrder = NA	I	I		I		I		I		I		I	I			NA	NA;     /* I*/;
+%LET CovBase =  NA	first first	first	first	first	first	first	first	NA	NA;    /*first*/;
+*Part 6.*/;
+%LET Strata =;
+%LET Dob = ;
+%LET XAge= ; *optional 5 is default;
+%LET AgeBand = ;  *required for Analysis = "Multi-age group";
+%LET AgeMid =   ;    
+%Include "\\10.141.0.2\Kadoorie\weigan\T2D_GRS\Corinna\Corinna\Cox Analysis Sytem Routines\Run Cox Analysis System v2.sas";
+
+
+data grs_whole_cvdallevent;length Parameter $15;
+set Pe_WGRSBQT_cvdallevent	Pe_WGRSIRQT_cvdallevent	Pe_WGRST50QT_cvdallevent 
+Pe_UWGRSBQT_cvdallevent	Pe_UWGRSIRQT_cvdallevent	Pe_UWGRST50QT_cvdallevent;
+log10P=-log10(ProbChiSq);
+if Parameter='age' or Parameter='sex' or Parameter='region' or Parameter='smoking' or Parameter='alcohol'
+ or Parameter='met_cat' or Parameter='income' or Parameter='htn' or Parameter='diabetesall' or Parameter='sbp_mean' or Parameter='bmi' then delete;
+run; 
+proc export data=grs_whole_cvdallevent
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\grs_whole_cvdallevent_full.csv'
+   dbms=csv
+   replace;
+run;
+
+
+/*cox regression macro*/
+%LET RunType = run;           
+%LET Analysis = simple; *Required   simple /     age-stratified   /  Multi-age group  ;
+%LET Project = Proj;
+%LET ProjDesc = Project Description;
+%LET RunDesc = Run Description;
+%LET InputDir =\\10.141.0.2\Kadoorie\weigan\DATASETS\SAS;            *Required;
+%LET InputFile = projstrokegrsfu;                                            *Required;     
+%LET OutputDir = \\10.141.0.2\Kadoorie\weigan\cvd;
+%LET ID =   IID;
+/*Part 2.*/
+%LET LowFU   =;
+%LET HighFU  = ;
+%LET StartDate = 1JAN2004;
+%LET EndDate =  31DEC2013;
+%LET LowAge  = 35;
+%LET HighAge = 79;
+%LET WhereStmt = ;
+/*Part 3.*/
+%LET Outcome = cvdallevent;  *Required;
+%LET CensorValue =  	0;                          
+%LET CensorDate = censoring_date;
+%LET StudyDate =  study_date;
+%LET TimeUnit = day ;                             *Required; 
+%LET TimeVar = Time_in Time_out ;                     *Required;   
+/*Part 4.*/
+%LET RF  =wGRSbqt wGRSirqt wGRSt50qt uwGRSbqt uwGRSirqt uwGRSt50qt; 
+%LET RFband =	[  ]	[  ]	[  ]	[  ]	[  ]	[  ]	;
+%LET RFmid  = 	[  ]	[  ]	[  ]	[  ]	[  ]	[  ]	;
+%LET Cent = 	NA	NA	NA	NA	NA	NA;
+%LET RFbase =	NA	NA	NA	NA	NA	NA;
+/*Part 5.*/
+%LET Covars =  age sex region smoking alcohol met_cat income htn diabetesall bmi sbp_mean/*fh_cvd*/; 
+%LET CovClass =	0 	1	1		1		1		1		1		1	1			0	0	;      /* 1*/; 
+%LET CovOrder = NA	I	I		I		I		I		I		I	I			NA	NA;     /* I*/;
+%LET CovBase =  NA	first first	first	first	first	first	first	first	NA	NA;    /*first*/;
+*Part 6.*/;
+%LET Strata =;
+%LET Dob = ;
+%LET XAge= ; *optional 5 is default;
+%LET AgeBand = ;  *required for Analysis = "Multi-age group";
+%LET AgeMid =   ;    
+%Include "\\10.141.0.2\Kadoorie\weigan\T2D_GRS\Corinna\Corinna\Cox Analysis Sytem Routines\Run Cox Analysis System v2.sas";
+
+
+data grs_whole_cvdallevent;length Parameter $15;
+set Pe_WGRSBQT_cvdallevent	Pe_WGRSIRQT_cvdallevent	Pe_WGRST50QT_cvdallevent 
+Pe_UWGRSBQT_cvdallevent	Pe_UWGRSIRQT_cvdallevent	Pe_UWGRST50QT_cvdallevent;
+log10P=-log10(ProbChiSq);
+if Parameter='age' or Parameter='sex' or Parameter='region' or Parameter='smoking' or Parameter='alcohol'
+ or Parameter='met_cat' or Parameter='income' or Parameter='htn' or Parameter='diabetesall' or Parameter='sbp_mean' or Parameter='bmi' then delete;
+run; 
+proc export data=grs_whole_cvdallevent
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\grs_whole_cvdallevent_trend_full.csv'
+   dbms=csv
+   replace;
+run;
