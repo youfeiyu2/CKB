@@ -1,0 +1,1674 @@
+proc sort data=sas.Bug16508;
+   by studyid;
+run;
+proc sort data=sas.baseline;
+   by studyid;
+run;
+proc sort data=sas.endpoints;
+   by studyid;
+run;
+
+data sas.proj1;
+merge sas.baseline sas.Bug16508 sas.endpoints ;
+  by studyid;
+run;
+
+data sas.projcvd;
+set sas.proj1 ;
+ age=age_at_study_date;sex=is_female;region=region_code;
+waist=waist_mm/10; hip=hip_mm/10;fatp=fat_percent_x10/10;whr=waist_hip_ratio;
+  fast_hours=hours_since_last_ate_x10/10;
+diabetesall=max(has_diabetes,c_ep0049,c_ep0048);
+diabetes_family=max(mother_diabetes,father_diabetes,siblings_diabetes,children_diabetes);
+if hypertension_diag=1 then sbp_adj=sbp_mean+15;else sbp_adj=sbp_mean;
+if hypertension_diag=1 then dbp_adj=dbp_mean+10;else dbp_adj=dbp_mean;
+if hypertension_diag=1 or sbp_mean>=140 or dbp_mean>=90 then htn=2;else if hypertension_diag=0 and sbp_mean<=120 and dbp_mean<=80 then htn=0;else htn=1;
+bmi=bmi_calc ;stroke_base=stroke_or_tia_diag;chd_base=chd_diag;
+cvd_base=max(stroke_or_tia_diag,chd_diag);
+cvd_family=max(mother_stroke, mother_heart_attack,father_stroke,father_heart_attack,siblings_stroke,siblings_heart_attack,children_stroke,children_heart_attack);
+urban=region_is_urban;edu=highest_education;income=household_income;
+alcohol=alcohol_category;smoking= smoking_category;
+chdall=max(c_ep0003,chd_base);
+strokeall=max(c_ep0070,stroke_base);
+cvdall=max(c_ep0003,c_ep0070,cvd_base);
+cvdallevent=max(c_ep0003, c_ep0070);
+cvdallevent_date = min(c_ep0003_date, c_ep0070_date);
+cvdalldeath=max(du_ep0003, du_ep0070);
+cvdalldeath_date = min(du_ep0003_date, du_ep0070_date);
+cvdevent=max(c_ep0003, c_ep0009);
+cvdevent_date = min(c_ep0003_date, c_ep0009_date);
+cvddeath=max(du_ep0003, du_ep0009);
+cvddeath_date = min(du_ep0003_date, du_ep0009_date);
+diabetesevent=max(c_ep0049,c_ep0048);
+diabetesevent_date=min(c_ep0049_date, c_ep0048_date);
+format cvdallevent_date datetime.;
+format cvdevent_date datetime.;
+format diabetesevent_date datetime.;
+format cvdalldeath_date datetime.;
+format cvddeath_date datetime.;
+IID=studyid*1;
+keep studyid IID study_date censoring_date Dob age sex region urban bmi waist hip fatp whr dbp_adj sbp_adj sbp_mean dbp_mean
+alcohol smoking met met_hours edu income
+has_diabetes diabetes_family htn stroke_base chd_base cvd_base cvd_family 
+diabetesall cvdall chdall strokeall
+cvdallevent cvdallevent_date cvdalldeath cvdalldeath_date cvdevent cvdevent_date cvddeath cvddeath_date
+diabetesevent diabetesevent_date du_ep0001 du_ep0001_date 
+du_ep0003 dis_ep0003 hi_ep0003 c_ep0003 du_ep0003_date dis_ep0003_date hi_ep0003_date c_ep0003_date
+du_ep0009 dis_ep0009 hi_ep0009 c_ep0009 du_ep0009_date dis_ep0009_date hi_ep0009_date c_ep0009_date
+du_ep0068 dis_ep0068 hi_ep0068 c_ep0068 du_ep0068_date dis_ep0068_date hi_ep0068_date c_ep0068_date
+du_ep0070 dis_ep0070 hi_ep0070 c_ep0070 du_ep0070_date dis_ep0070_date hi_ep0070_date c_ep0070_date;
+run;
+%macro quint(dsn,var,quintvar);
+
+/* calculate the cutpoints for the quintiles */
+proc univariate noprint data=&dsn;
+  var &var;
+  output out=quintile pctlpts=33.33333 66.66666 pctlpre=pct;
+run;
+
+/* write the quintiles to macro variables */
+data _null_;
+set quintile;
+call symput('q1',pct33_33) ;
+call symput('q2',pct66_66) ;
+run;
+
+/* create the new variable in the main dataset */
+data &dsn;
+set &dsn;
+       if &var =. then &quintvar = .;
+  else if &var le &q1 then &quintvar=1;
+  else if &var le &q2 then &quintvar=2;
+  else &quintvar=3;
+run;
+%mend quint;
+
+%quint(sas.projcvd ,met,met_cat);
+
+proc sort data=sas.projcvd;by IID;run;
+proc sort data=sas.genotype;by IID;run;
+DATA sas.projcvdgrs; 
+merge sas.genotype sas.projcvd;by IID;
+if wGRSb=. then delete;
+drop uwGRSb2 wGRSb2 wGRSt52 uwGRSt52 wGRSt53 uwGRSt53;
+wGRSbsd=wGRSb;wGRSirsd=wGRSir;wGRSt50sd=wGRSt50 ;run;
+
+%macro quint(dsn,var,quintvar);
+
+/* calculate the cutpoints for the quintiles */
+proc univariate noprint data=&dsn;
+  var &var;
+  output out=quintile pctlpts=33.33333 66.66666 pctlpre=pct;
+run;
+
+/* write the quintiles to macro variables */
+data _null_;
+set quintile;
+call symput('q1',pct33_33) ;
+call symput('q2',pct66_66) ;
+run;
+
+/* create the new variable in the main dataset */
+data &dsn;
+set &dsn;
+       if &var =. then &quintvar = .;
+  else if &var le &q1 then &quintvar=1;
+  else if &var le &q2 then &quintvar=2;
+  else &quintvar=3;
+run;
+%mend quint;
+
+%quint(sas.projcvdgrs ,uwGRSt50,uwGRSt50qt);
+%quint(sas.projcvdgrs ,uwGRSb,uwGRSbqt);
+%quint(sas.projcvdgrs ,uwGRSir,uwGRSirqt);
+%quint(sas.projcvdgrs ,wGRSt50,wGRSt50qt);
+%quint(sas.projcvdgrs ,wGRSb,wGRSbqt);
+%quint(sas.projcvdgrs ,wGRSir,wGRSirqt);
+%macro quint(dsn,var,quintvar);
+
+/* calculate the cutpoints for the quintiles */
+proc univariate noprint data=&dsn;
+  var &var;
+  output out=quintile pctlpts=50 pctlpre=pct;
+run;
+
+/* write the quintiles to macro variables */
+data _null_;
+set quintile;
+call symput('q1',pct50) ;
+run;
+
+/* create the new variable in the main dataset */
+data &dsn;
+set &dsn;
+       if &var =. then &quintvar = .;
+  else if &var le &q1 then &quintvar=1;
+  else &quintvar=2;
+run;
+%mend quint;
+%quint(sas.projcvdgrs ,wGRSb,wGRSblh);
+%quint(sas.projcvdgrs ,wGRSir,wGRSirlh);
+%quint(sas.projcvdgrs ,uwGRSb,uwGRSblh);
+%quint(sas.projcvdgrs ,uwGRSir,uwGRSirlh);
+
+proc freq data=sas.projcvdgrs;table wGRSblh wGRSirlh uwGRSblh uwGRSirlh sex cvdall wgrsirqt;run;
+proc freq data=sas.projcvdgrs;table  wGRSblh*wGRSirlh*strokeall ;run;
+proc freq data=sas.projcvdgrs; where cvdallevent=1 or (cvdallevent=0 &cvd_base=0);table c_ep0003*c_ep0070;run;
+proc means data=sas.projcvdgrs median; var wGRSirsd;run;
+proc freq data=sas.projcvdgrs;table wgrsirqt wgrsbqt wgrst50qt uwgrsbqt uwgrsirqt uwgrst50qt;run;
+PROC STANDARD DATA=sas.projcvdgrs MEAN=0 STD=1 OUT=sas.projcvdgrs;
+  VAR wGRSbsd wGRSirsd wGRSt50sd ;
+RUN;
+proc sort data=sas.projcvdgrs;by wGRSblh;run;
+proc means data=sas.projcvdgrs median; var wGRSirsd;run;
+
+
+
+proc freq data=sas.projcvdgrs;table 
+/***************************************************************************************************
+  Test Associations between GRSs and CVDs in prevalenct cvd cases and Prevalent + incident CVD cases
+****************************************************************************************************/
+ods output ParameterEstimates (persist) = r; 
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model cvdall(event='1')=wGRSt50qt age sex region;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model chdall(event='1')=wGRSt50qt age sex region;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model strokeall(event='1')=wGRSt50qt age sex region;run;
+
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model cvdall(event='1')=wGRSbqt age sex region;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model chdall(event='1')=wGRSbqt age sex region;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model strokeall(event='1')=wGRSbqt age sex region;run;
+
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model cvdall(event='1')=wGRSirqt age sex region;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model chdall(event='1')=wGRSirqt age sex region;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model strokeall(event='1')=wGRSirqt age sex region;run;
+
+
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model cvdall(event='1')=wGRSt50qt age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model chdall(event='1')=wGRSt50qt age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model strokeall(event='1')=wGRSt50qt age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model cvdall(event='1')=wGRSbqt age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model chdall(event='1')=wGRSbqt age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model strokeall(event='1')=wGRSbqt age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model cvdall(event='1')=wGRSirqt age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model chdall(event='1')=wGRSirqt age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model strokeall(event='1')=wGRSirqt age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+ods output close;
+data r2;
+  set r;
+  retain modelnum 0;
+  if variable="Intercept" then modelnum = modelnum + 1; OR=EXP(Estimate); LCI=EXP(Estimate-1.96*StdErr);UCI=EXP(Estimate+1.96*StdErr);
+  if Variable eq 'wGRSt50qt'  or Variable eq 'wGRSbqt' or Variable eq 'wGRSirqt' then output;
+ 
+run;
+proc export data=r2
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\wgrs_cvdall.csv'
+   dbms=csv
+   replace;
+run;
+/****************************************************************************************************************
+  Test interation effects of GRSbeta and GRSir on CVDs in prevalenct cvd cases and Prevalent + incident CVD cases
+*****************************************************************************************************************/
+
+
+ods output ParameterEstimates (persist) = r; 
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2;
+class sex region ;
+model cvdall(event='1')=wGRSbsd age sex region;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2;
+class sex region ;
+model chdall(event='1')=wGRSbsd age sex region;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2;
+class sex region ;
+model strokeall(event='1')=wGRSbsd age sex region;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSblh=2;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;where wGRSblh=2;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;where wGRSblh=2;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region;run;
+
+
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2;
+class sex region ;
+model cvdall(event='1')=wGRSbsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2;
+class sex region ;
+model chdall(event='1')=wGRSbsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2;
+class sex region ;
+model strokeall(event='1')=wGRSbsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSblh=2;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where wGRSblh=2;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where wGRSblh=2;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+ods output close;
+
+data r2;
+  set r;
+  retain modelnum 0;
+  if variable="Intercept" then modelnum = modelnum + 1; OR=EXP(Estimate); LCI=EXP(Estimate-1.96*StdErr);UCI=EXP(Estimate+1.96*StdErr);
+  if Variable eq 'wGRSt50sd'  or Variable eq 'wGRSbsd' or Variable eq 'wGRSirsd' then output;
+ 
+run;
+
+proc export data=r2
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\wgrs_cvdall_h.csv'
+   dbms=csv
+   replace;
+run;
+
+
+/******************************************************
+			GRSbeta and GRSIR Interaction
+******************************************************/
+
+ods output ParameterEstimates (persist) = r; 
+
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model cvdall(event='1')=wGRSbsd wGRSbsd*wGRSirlh  wGRSirlh age sex region;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model chdall(event='1')=wGRSbsd wGRSbsd*wGRSirlh  wGRSirlh age sex region;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model strokeall(event='1')=wGRSbsd wGRSbsd*wGRSirlh  wGRSirlh age sex region;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model cvdall(event='1')=wGRSbsd wGRSbsd*wGRSirlh  wGRSirlh age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model chdall(event='1')=wGRSbsd wGRSbsd*wGRSirlh  wGRSirlh age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model strokeall(event='1')=wGRSbsd wGRSbsd*wGRSirlh  wGRSirlh age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model cvdall(event='1')=wGRSblh wGRSblh*wGRSirsd  wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model chdall(event='1')=wGRSblh wGRSblh*wGRSirsd  wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model strokeall(event='1')=wGRSblh wGRSblh*wGRSirsd  wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model cvdall(event='1')=wGRSblh wGRSblh*wGRSirsd  wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model chdall(event='1')=wGRSblh wGRSblh*wGRSirsd   wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model strokeall(event='1')=wGRSblh wGRSblh*wGRSirsd wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+ods output close;
+data r2;
+  set r;
+  retain modelnum 0;
+  if variable="Intercept" then modelnum = modelnum + 1; OR=EXP(Estimate); LCI=EXP(Estimate-1.96*StdErr);UCI=EXP(Estimate+1.96*StdErr);
+  if Variable eq 'wGRSbsd*wGRSirlh' or Variable eq 'wGRSblh*wGRSirsd' then output;
+ 
+run;
+proc export data=r2
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\wgrs_cvdall_interact_lh.csv'
+   dbms=csv
+   replace;
+run;
+/***********GRSIR with CVDs in 4 subpopulation **********************/
+
+ods output ParameterEstimates (persist) = r; 
+
+proc logistic data=sas.projcvdgrs;where wGRSirsd > 0.2618826 and wGRSblh=1;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1 and wGRSblh=1;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1 and wGRSblh=1;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1 and wGRSblh=1;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1 and wGRSblh=1;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1 and wGRSblh=1;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2 and wGRSblh=1;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2 and wGRSblh=1;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2 and wGRSblh=1;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2 and wGRSblh=1;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2 and wGRSblh=1;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2 and wGRSblh=1;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1 and wGRSblh=2;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1 and wGRSblh=2;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1 and wGRSblh=2;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1 and wGRSblh=2;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1 and wGRSblh=2;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1 and wGRSblh=2;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2 and wGRSblh=2;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2 and wGRSblh=2;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2 and wGRSblh=2;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2 and wGRSblh=2;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2 and wGRSblh=2;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2 and wGRSblh=2;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+
+ods output close;
+data r2;
+  set r;
+  retain modelnum 0;
+  if variable="Intercept" then modelnum = modelnum + 1; OR=EXP(Estimate); LCI=EXP(Estimate-1.96*StdErr);UCI=EXP(Estimate+1.96*StdErr);
+  if Variable eq 'wGRSirsd' then output;
+ 
+run;
+proc export data=r2
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\wgrs_cvdall_4GROUP_ir.csv'
+   dbms=csv
+   replace;
+run;
+
+
+/* interaction with grsbeta category*/
+ods output ParameterEstimates (persist) = r; 
+
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1;
+class sex region ;
+model cvdall(event='1')=wGRSirsd wGRSbsd*wGRSirsd   wGRSbsd age sex region ;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1;
+class sex region ;
+model cvdall(event='1')=wGRSirsd wGRSbsd*wGRSirsd   wGRSbsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2;
+class sex region ;
+model cvdall(event='1')=wGRSirsd wGRSbsd*wGRSirsd   wGRSbsd age sex region ;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2;
+class sex region ;
+model cvdall(event='1')=wGRSirsd wGRSbsd*wGRSirsd   wGRSbsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1;
+class sex region ;
+model chdall(event='1')=wGRSirsd wGRSbsd*wGRSirsd   wGRSbsd age sex region ;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1;
+class sex region ;
+model chdall(event='1')=wGRSirsd wGRSbsd*wGRSirsd   wGRSbsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2;
+class sex region ;
+model chdall(event='1')=wGRSirsd wGRSbsd*wGRSirsd   wGRSbsd age sex region ;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2;
+class sex region ;
+model chdall(event='1')=wGRSirsd wGRSbsd*wGRSirsd   wGRSbsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1;
+class sex region ;
+model strokeall(event='1')=wGRSirsd wGRSbsd*wGRSirsd   wGRSbsd age sex region ;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSirlh=1;
+class sex region ;
+model strokeall(event='1')=wGRSirsd wGRSbsd*wGRSirsd   wGRSbsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2;
+class sex region ;
+model strokeall(event='1')=wGRSirsd wGRSbsd*wGRSirsd   wGRSbsd age sex region ;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSirlh=2;
+class sex region ;
+model strokeall(event='1')=wGRSirsd wGRSbsd*wGRSirsd   wGRSbsd age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+ods output close;
+data r2;
+  set r;
+  retain modelnum 0;
+  if variable="Intercept" then modelnum = modelnum + 1; OR=EXP(Estimate); LCI=EXP(Estimate-1.96*StdErr);UCI=EXP(Estimate+1.96*StdErr);
+  if Variable eq 'wGRSirsd*wGRSbsd' then output;
+ 
+run;
+proc export data=r2
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\wgrs_cvdall_4GROUP_ir_interact.csv'
+   dbms=csv
+   replace;
+run;
+
+
+ods output ParameterEstimates (persist) = r; 
+
+proc logistic data=sas.projcvdgrs;where wGRSblh=1;
+class sex region ;
+model cvdall(event='1')=wGRSbsd wGRSbsd*wGRSirlh   wGRSirlh age sex region ;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSblh=1;
+class sex region ;
+model cvdall(event='1')=wGRSbsd wGRSbsd*wGRSirlh   wGRSirlh age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSblh=2;
+class sex region ;
+model cvdall(event='1')=wGRSbsd wGRSbsd*wGRSirlh   wGRSirlh age sex region ;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSblh=2;
+class sex region ;
+model cvdall(event='1')=wGRSbsd wGRSbsd*wGRSirlh   wGRSirlh age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+
+proc logistic data=sas.projcvdgrs;where wGRSblh=1;
+class sex region ;
+model chdall(event='1')=wGRSbsd wGRSbsd*wGRSirlh   wGRSirlh age sex region ;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSblh=1;
+class sex region ;
+model chdall(event='1')=wGRSbsd wGRSbsd*wGRSirlh   wGRSirlh age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSblh=2;
+class sex region ;
+model chdall(event='1')=wGRSbsd wGRSbsd*wGRSirlh   wGRSirlh age sex region ;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSblh=2;
+class sex region ;
+model chdall(event='1')=wGRSbsd wGRSbsd*wGRSirlh   wGRSirlh age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+
+proc logistic data=sas.projcvdgrs;where wGRSblh=1;
+class sex region ;
+model strokeall(event='1')=wGRSbsd wGRSbsd*wGRSirlh   wGRSirlh age sex region ;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSblh=1;
+class sex region ;
+model strokeall(event='1')=wGRSbsd wGRSbsd*wGRSirlh   wGRSirlh age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSblh=2;
+class sex region ;
+model strokeall(event='1')=wGRSbsd wGRSbsd*wGRSirlh   wGRSirlh age sex region ;run;
+
+proc logistic data=sas.projcvdgrs;where wGRSblh=2;
+class sex region ;
+model strokeall(event='1')=wGRSbsd wGRSbsd*wGRSirlh   wGRSirlh age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+ods output close;
+data r2;
+  set r;
+  retain modelnum 0;
+  if variable="Intercept" then modelnum = modelnum + 1; OR=EXP(Estimate); LCI=EXP(Estimate-1.96*StdErr);UCI=EXP(Estimate+1.96*StdErr);
+  if Variable eq 'wGRSbsd*wGRSirlh' then output;
+ 
+run;
+proc export data=r2
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\wgrs_cvdall_4GROUP_b_interact.csv'
+   dbms=csv
+   replace;
+run;
+
+
+
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model du_ep0001(event='1')=uwGRSt50 age sex region;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model du_ep0001(event='1')=uwGRSt50 age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model cvddeath(event='1')=uwGRSt50 age sex region;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model cvddeath(event='1')=uwGRSt50 age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model cvdalldeath(event='1')=uwGRSt50 age sex region;run;
+proc logistic data=sas.projcvdgrs;
+class sex region ;
+model cvdalldeath(event='1')=uwGRSt50 age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &cvd_base=0);
+class sex region ;
+model cvdallevent(event='1')=uwGRSt50 age sex region;run;
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &cvd_base=0);
+class sex region ;
+model cvdallevent(event='1')=uwGRSt50 age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &chd_base=0);
+class sex region ;
+model c_ep0003(event='1')=uwGRSt50 age sex region;run;
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &chd_base=0);
+class sex region ;
+model c_ep0003(event='1')=uwGRSt50 age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &stroke_base=0);
+class sex region ;
+model c_ep0070(event='1')=uwGRSt50 age sex region;run;
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &stroke_base=0);
+class sex region ;
+model c_ep0070(event='1')=uwGRSt50 age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+
+
+ods output close;
+data r2;
+  set r;
+  retain modelnum 0;
+  if variable="Intercept" then modelnum = modelnum + 1; OR=EXP(Estimate); LCI=EXP(Estimate-1.96*StdErr);UCI=EXP(Estimate+1.96*StdErr);
+  if Variable eq 'uwGRSt50'  or Variable eq 'uwGRSb' eq Variable ne 'uwGRSir' then output;
+ 
+run;
+
+/*********************************************************
+		CVD event
+*********************************************************/
+
+
+ods output ParameterEstimates (persist) = r; 
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &cvd_base=0);
+class sex region ;
+model cvdallevent(event='1')=uwGRSt50 age sex region;run;
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &cvd_base=0);
+class sex region ;
+model cvdallevent(event='1')=uwGRSt50 age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &chd_base=0);
+class sex region ;
+model c_ep0003(event='1')=uwGRSt50 age sex region;run;
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &chd_base=0);
+class sex region ;
+model c_ep0003(event='1')=uwGRSt50 age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &stroke_base=0);
+class sex region ;
+model c_ep0070(event='1')=uwGRSt50 age sex region;run;
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &stroke_base=0);
+class sex region ;
+model c_ep0070(event='1')=uwGRSt50 age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &cvd_base=0);
+class sex region ;
+model cvdall(event='1')=uwGRSt50 age sex region;run;
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &cvd_base=0);
+class sex region ;
+model cvdall(event='1')=uwGRSt50 age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &cvd_base=0);
+class sex region ;
+model chdall(event='1')=uwGRSt50 age sex region;run;
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &cvd_base=0);
+class sex region ;
+model chdall(event='1')=uwGRSt50 age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &cvd_base=0);
+class sex region ;
+model strokeall(event='1')=uwGRSt50 age sex region;run;
+proc logistic data=sas.projcvdgrs;where cvdallevent=1 or (cvdallevent=0 &cvd_base=0);
+class sex region ;
+model strokeall(event='1')=uwGRSt50 age sex region bmi smoking alcohol met_cat income has_diabetes htn;run;
+ods output close;
+data r3;
+  set r;
+  retain modelnum 0;
+  if variable="Intercept" then modelnum = modelnum + 1; OR=EXP(Estimate); LCI=EXP(Estimate-1.96*StdErr);UCI=EXP(Estimate+1.96*StdErr);
+  if Variable eq 'uwGRSt50'  or Variable eq 'uwGRSb' eq Variable ne 'uwGRSir' then output;
+ 
+run;
+
+
+
+/********************************************
+ 			T2D complications
+********************************************/
+
+
+data sas.projt2dcvdgrs;
+set sas.projcvdgrs;
+if has_diabetes=1 and cvd_base=0 then output;
+wGRSbsd=wGRSb;wGRSirsd=wGRSir;wGRSt50sd=wGRSt50 ;
+run;
+PROC STANDARD DATA=sas.projt2dcvdgrs MEAN=0 STD=1 OUT=sas.projt2dcvdgrs;
+  VAR wGRSbsd wGRSirsd wGRSt50sd ;
+RUN;
+
+%macro quint(dsn,var,quintvar);
+
+/* calculate the cutpoints for the quintiles */
+proc univariate noprint data=&dsn;
+  var &var;
+  output out=quintile pctlpts=33.33333 66.66666 pctlpre=pct;
+run;
+
+/* write the quintiles to macro variables */
+data _null_;
+set quintile;
+call symput('q1',pct33_33) ;
+call symput('q2',pct66_66) ;
+run;
+
+/* create the new variable in the main dataset */
+data &dsn;
+set &dsn;
+       if &var =. then &quintvar = .;
+  else if &var le &q1 then &quintvar=1;
+  else if &var le &q2 then &quintvar=2;
+  else &quintvar=3;
+run;
+%mend quint;
+
+%quint(sas.projt2dcvdgrs ,uwGRSt50,uwGRSt50qt);
+%quint(sas.projt2dcvdgrs ,uwGRSb,uwGRSbqt);
+%quint(sas.projt2dcvdgrs ,uwGRSir,uwGRSirqt);
+%quint(sas.projt2dcvdgrs ,wGRSt50,wGRSt50qt);
+%quint(sas.projt2dcvdgrs ,wGRSb,wGRSbqt);
+%quint(sas.projt2dcvdgrs ,wGRSir,wGRSirqt);
+%macro quint(dsn,var,quintvar);
+
+/* calculate the cutpoints for the quintiles */
+proc univariate noprint data=&dsn;
+  var &var;
+  output out=quintile pctlpts=50 pctlpre=pct;
+run;
+
+/* write the quintiles to macro variables */
+data _null_;
+set quintile;
+call symput('q1',pct50) ;
+run;
+
+/* create the new variable in the main dataset */
+data &dsn;
+set &dsn;
+       if &var =. then &quintvar = .;
+  else if &var le &q1 then &quintvar=1;
+  else &quintvar=2;
+run;
+%mend quint;
+%quint(sas.projt2dcvdgrs ,wGRSb,wGRSblh);
+%quint(sas.projt2dcvdgrs ,wGRSir,wGRSirlh);
+%quint(sas.projt2dcvdgrs ,uwGRSb,uwGRSblh);
+%quint(sas.projt2dcvdgrs ,uwGRSir,uwGRSirlh);
+proc freq data=sas.projt2dcvdgrs;table wgrsirqt wgrsbqt wgrst50qt uwgrsbqt uwgrsirqt uwgrst50qt wGRSblh wGRSirlh uwGRSblh uwGRSirlh;run;
+proc freq data=sas.projt2dcvdgrs;table wGRSblh*wGRSirlh*strokeall;run;
+
+/***************************************************************************************************
+  Test Associations between GRSs and incident CVDs in t2d patients
+****************************************************************************************************/
+ods output ParameterEstimates (persist) = r; 
+
+proc logistic data=sas.projt2dcvdgrs;
+class sex region ;
+model cvdall(event='1')=wGRSbsd wGRSbsd*wGRSirlh wGRSirlh age sex region;run;
+proc logistic data=sas.projt2dcvdgrs;
+class sex region ;
+model chdall(event='1')=wGRSbsd wGRSbsd*wGRSirlh wGRSirlh age sex region;run;
+proc logistic data=sas.projt2dcvdgrs;
+class sex region ;
+model strokeall(event='1')=wGRSbsd wGRSbsd*wGRSirlh wGRSirlh age sex region;run;
+
+proc logistic data=sas.projt2dcvdgrs;
+class sex region ;
+model cvdall(event='1')=wGRSirsd wGRSblh*wGRSirsd wGRSblh age sex region;run;
+proc logistic data=sas.projt2dcvdgrs;
+class sex region ;
+model chdall(event='1')=wGRSirsd wGRSblh*wGRSirsd wGRSblh age sex region;run;
+proc logistic data=sas.projt2dcvdgrs;
+class sex region ;
+model strokeall(event='1')=wGRSirsd wGRSblh*wGRSirsd wGRSblh age sex region;run;
+
+
+proc logistic data=sas.projt2dcvdgrs;
+class sex region ;
+model cvdall(event='1')=wGRSbsd wGRSbsd*wGRSirlh wGRSirlh age sex region bmi smoking alcohol met_cat income  htn;run;
+proc logistic data=sas.projt2dcvdgrs;
+class sex region ;
+model chdall(event='1')=wGRSbsd wGRSbsd*wGRSirlh wGRSirlh age sex region bmi smoking alcohol met_cat income  htn;run;
+proc logistic data=sas.projt2dcvdgrs;
+class sex region ;
+model strokeall(event='1')=wGRSbsd wGRSbsd*wGRSirlh wGRSirlh age sex region bmi smoking alcohol met_cat income  htn;run;
+
+proc logistic data=sas.projt2dcvdgrs;
+class sex region ;
+model cvdall(event='1')=wGRSirsd wGRSblh*wGRSirsd wGRSblh  age sex region bmi smoking alcohol met_cat income  htn;run;
+proc logistic data=sas.projt2dcvdgrs;
+class sex region ;
+model chdall(event='1')=wGRSirsd wGRSblh*wGRSirsd wGRSblh  age sex region bmi smoking alcohol met_cat income  htn;run;
+proc logistic data=sas.projt2dcvdgrs;
+class sex region ;
+model strokeall(event='1')=wGRSirsd wGRSblh*wGRSirsd wGRSblh  age sex region bmi smoking alcohol met_cat income  htn;run;
+ods output close;
+data r2;
+  set r;
+  retain modelnum 0;
+  if variable="Intercept" then modelnum = modelnum + 1; OR=EXP(Estimate); LCI=EXP(Estimate-1.96*StdErr);UCI=EXP(Estimate+1.96*StdErr);
+  if Variable eq 'wGRSbsd*wGRSirlh'  or Variable eq 'wGRSirsd*wGRSblh'  then output;
+ 
+run;
+proc export data=r2
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\t2dwgrs_cvdall_interact_lh.csv'
+   dbms=csv
+   replace;
+run;
+
+/*************************************
+GRSir in 4 subpopulation
+*************************************/
+ods output ParameterEstimates (persist) = r; 
+
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1 and wGRSblh=1;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1 and wGRSblh=1;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income  htn;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2 and wGRSblh=1;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2 and wGRSblh=1;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income  htn;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1 and wGRSblh=1;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1 and wGRSblh=1;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income  htn;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2 and wGRSblh=1;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2 and wGRSblh=1;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income  htn;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1 and wGRSblh=1;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1 and wGRSblh=1;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income  htn;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2 and wGRSblh=1;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2 and wGRSblh=1;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income  htn;run;
+
+
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1 and wGRSblh=2;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1 and wGRSblh=2;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income  htn;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2 and wGRSblh=2;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2 and wGRSblh=2;
+class sex region ;
+model cvdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income  htn;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1 and wGRSblh=2;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1 and wGRSblh=2;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income  htn;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2 and wGRSblh=2;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2 and wGRSblh=2;
+class sex region ;
+model chdall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income  htn;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1 and wGRSblh=2;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1 and wGRSblh=2;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income  htn;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2 and wGRSblh=2;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region;run;
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2 and wGRSblh=2;
+class sex region ;
+model strokeall(event='1')=wGRSirsd age sex region bmi smoking alcohol met_cat income  htn;run;
+
+ods output close;
+data r2;
+  set r;
+  retain modelnum 0;
+  if variable="Intercept" then modelnum = modelnum + 1; OR=EXP(Estimate); LCI=EXP(Estimate-1.96*StdErr);UCI=EXP(Estimate+1.96*StdErr);
+  if Variable eq 'wGRSirsd' then output;
+ 
+run;
+proc export data=r2
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\t2dwgrs_cvdall_4GROUP_ir.csv'
+   dbms=csv
+   replace;
+run;
+quit;
+/*************************************
+GRSir in 4 subpopulation and interaction with GRSbeta category
+*************************************/
+ods output ParameterEstimates (persist) = r; 
+
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1;
+class sex region ;
+model cvdall(event='1')=wGRSirsd wGRSblh*wGRSirsd   wGRSblh age sex region ;run;
+
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1;
+class sex region ;
+model cvdall(event='1')=wGRSirsd wGRSblh*wGRSirsd   wGRSblh age sex region bmi smoking alcohol met_cat income  htn;run;
+
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2;
+class sex region ;
+model cvdall(event='1')=wGRSirsd wGRSblh*wGRSirsd   wGRSblh age sex region ;run;
+
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2;
+class sex region ;
+model cvdall(event='1')=wGRSirsd wGRSblh*wGRSirsd   wGRSblh age sex region bmi smoking alcohol met_cat income  htn;run;
+
+
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1;
+class sex region ;
+model chdall(event='1')=wGRSirsd wGRSblh*wGRSirsd   wGRSblh age sex region ;run;
+
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1;
+class sex region ;
+model chdall(event='1')=wGRSirsd wGRSblh*wGRSirsd   wGRSblh age sex region bmi smoking alcohol met_cat income  htn;run;
+
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2;
+class sex region ;
+model chdall(event='1')=wGRSirsd wGRSblh*wGRSirsd   wGRSblh age sex region ;run;
+
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2;
+class sex region ;
+model chdall(event='1')=wGRSirsd wGRSblh*wGRSirsd   wGRSblh age sex region bmi smoking alcohol met_cat income  htn;run;
+
+
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1;
+class sex region ;
+model strokeall(event='1')=wGRSirsd wGRSblh*wGRSirsd   wGRSblh age sex region ;run;
+
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=1;
+class sex region ;
+model strokeall(event='1')=wGRSirsd wGRSblh*wGRSirsd   wGRSblh age sex region bmi smoking alcohol met_cat income  htn;run;
+
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2;
+class sex region ;
+model strokeall(event='1')=wGRSirsd wGRSblh*wGRSirsd   wGRSblh age sex region ;run;
+
+proc logistic data=sas.projt2dcvdgrs;where wGRSirlh=2;
+class sex region ;
+model strokeall(event='1')=wGRSirsd wGRSblh*wGRSirsd   wGRSblh age sex region bmi smoking alcohol met_cat income  htn;run;
+ods output close;
+data r2;
+  set r;
+  retain modelnum 0;
+  if variable="Intercept" then modelnum = modelnum + 1; OR=EXP(Estimate); LCI=EXP(Estimate-1.96*StdErr);UCI=EXP(Estimate+1.96*StdErr);
+  if Variable eq 'wGRSirsd*wGRSblh' then output;
+ 
+run;
+proc export data=r2
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\t2dwgrs_cvdall_4GROUP_ir_interact.csv'
+   dbms=csv
+   replace;
+run;
+
+/******************************************************************
+
+						CVDallevent
+
+******************************************************************/
+data sas.projcvdgrsfu;
+set sas.projcvdgrs;
+if cvd_base=0 then output;
+wGRSbsd=wGRSb;wGRSirsd=wGRSir;wGRSt50sd=wGRSt50 ;
+run;
+PROC STANDARD DATA=sas.projcvdgrsfu MEAN=0 STD=1 OUT=sas.projt2dcvdgrs;
+  VAR wGRSbsd wGRSirsd wGRSt50sd ;
+RUN;
+
+%macro quint(dsn,var,quintvar);
+
+/* calculate the cutpoints for the quintiles */
+proc univariate noprint data=&dsn;
+  var &var;
+  output out=quintile pctlpts=33.33333 66.66666 pctlpre=pct;
+run;
+
+/* write the quintiles to macro variables */
+data _null_;
+set quintile;
+call symput('q1',pct33_33) ;
+call symput('q2',pct66_66) ;
+run;
+
+/* create the new variable in the main dataset */
+data &dsn;
+set &dsn;
+       if &var =. then &quintvar = .;
+  else if &var le &q1 then &quintvar=1;
+  else if &var le &q2 then &quintvar=2;
+  else &quintvar=3;
+run;
+%mend quint;
+%quint(sas.projcvdgrsfu ,uwGRSt50,uwGRSt50qt);
+%quint(sas.projcvdgrsfu ,uwGRSb,uwGRSbqt);
+%quint(sas.projcvdgrsfu ,uwGRSir,uwGRSirqt);
+%quint(sas.projcvdgrsfu ,wGRSt50,wGRSt50qt);
+%quint(sas.projcvdgrsfu ,wGRSb,wGRSbqt);
+%quint(sas.projcvdgrsfu ,wGRSir,wGRSirqt);
+%macro quint(dsn,var,quintvar);
+
+/* calculate the cutpoints for the quintiles */
+proc univariate noprint data=&dsn;
+  var &var;
+  output out=quintile pctlpts=50 pctlpre=pct;
+run;
+
+/* write the quintiles to macro variables */
+data _null_;
+set quintile;
+call symput('q1',pct50) ;
+run;
+
+/* create the new variable in the main dataset */
+data &dsn;
+set &dsn;
+       if &var =. then &quintvar = .;
+  else if &var le &q1 then &quintvar=1;
+  else &quintvar=2;
+run;
+%mend quint;
+%quint(sas.projcvdgrsfu ,wGRSb,wGRSblh);
+%quint(sas.projcvdgrsfu ,wGRSir,wGRSirlh);
+%quint(sas.projcvdgrsfu ,uwGRSb,uwGRSblh);
+%quint(sas.projcvdgrsfu ,uwGRSir,uwGRSirlh);
+
+PROC FREQ DATA= sas.projcvdgrsfu;TABLE cvdallEVENT;RUN;
+
+/*cox regression macro*/
+%LET RunType = run;           
+%LET Analysis = simple; *Required   simple /     age-stratified   /  Multi-age group  ;
+%LET Project = Proj;
+%LET ProjDesc = Project Description;
+%LET RunDesc = Run Description;
+%LET InputDir =\\10.141.0.2\Kadoorie\weigan\DATASETS\SAS;            *Required;
+%LET InputFile = projcvdgrsfu;                                            *Required;     
+%LET OutputDir = \\10.141.0.2\Kadoorie\weigan\cvd;
+%LET ID =   IID;
+/*Part 2.*/
+%LET LowFU   =;
+%LET HighFU  = ;
+%LET StartDate = 1JAN2004;
+%LET EndDate =  31DEC2013;
+%LET LowAge  = 35;
+%LET HighAge = 79;
+%LET WhereStmt = ;
+/*Part 3.*/
+%LET Outcome = cvdallevent;  *Required;
+%LET CensorValue =  	0;                          
+%LET CensorDate = censoring_date;
+%LET StudyDate =  study_date;
+%LET TimeUnit = day ;                             *Required; 
+%LET TimeVar = Time_in Time_out ;                     *Required;   
+/*Part 4.*/
+%LET RF  =wGRSbqt wGRSirqt wGRSt50qt uwGRSbqt uwGRSirqt uwGRSt50qt; 
+%LET RFband =	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	;
+%LET RFmid  = 	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	;
+%LET Cent = 	NA	NA	NA	NA	NA	NA;
+%LET RFbase =	first first	first	first	first	first;
+/*Part 5.*/
+%LET Covars =  age sex region /*fh_cvd*/; 
+%LET CovClass =	0 	1	1		;      /* 1*/; 
+%LET CovOrder = NA	I	I;     /* I*/;
+%LET CovBase =  NA	first first;    /*first*/;
+*Part 6.*/;
+%LET Strata =;
+%LET Dob = ;
+%LET XAge= ; *optional 5 is default;
+%LET AgeBand = ;  *required for Analysis = "Multi-age group";
+%LET AgeMid =   ;    
+%Include "\\10.141.0.2\Kadoorie\weigan\T2D_GRS\Corinna\Corinna\Cox Analysis Sytem Routines\Run Cox Analysis System v2.sas";
+
+
+data grs_whole_cvdallevent;length Parameter $15;
+set Pe_WGRSBQT_cvdallevent	Pe_WGRSIRQT_cvdallevent	Pe_WGRST50QT_cvdallevent 
+Pe_UWGRSBQT_cvdallevent	Pe_UWGRSIRQT_cvdallevent	Pe_UWGRST50QT_cvdallevent;
+log10P=-log10(ProbChiSq);
+if Parameter='age' or Parameter='sex' or Parameter='region'  then delete;
+run; 
+proc export data=grs_whole_cvdallevent
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\grs_whole_cvdallevent.csv'
+   dbms=csv
+   replace;
+run;
+
+
+/*cox regression macro*/
+%LET RunType = run;           
+%LET Analysis = simple; *Required   simple /     age-stratified   /  Multi-age group  ;
+%LET Project = Proj;
+%LET ProjDesc = Project Description;
+%LET RunDesc = Run Description;
+%LET InputDir =\\10.141.0.2\Kadoorie\weigan\DATASETS\SAS;            *Required;
+%LET InputFile = projcvdgrsfu;                                            *Required;     
+%LET OutputDir = \\10.141.0.2\Kadoorie\weigan\cvd;
+%LET ID =   IID;
+/*Part 2.*/
+%LET LowFU   =;
+%LET HighFU  = ;
+%LET StartDate = 1JAN2004;
+%LET EndDate =  31DEC2013;
+%LET LowAge  = 35;
+%LET HighAge = 79;
+%LET WhereStmt = ;
+/*Part 3.*/
+%LET Outcome = cvdallevent;  *Required;
+%LET CensorValue =  	0;                          
+%LET CensorDate = censoring_date;
+%LET StudyDate =  study_date;
+%LET TimeUnit = day ;                             *Required; 
+%LET TimeVar = Time_in Time_out ;                     *Required;   
+/*Part 4.*/
+%LET RF  =wGRSbqt wGRSirqt wGRSt50qt uwGRSbqt uwGRSirqt uwGRSt50qt; 
+%LET RFband =	[  ]	[  ]	[  ]	[  ]	[  ]	[  ]	;
+%LET RFmid  = 	[  ]	[  ]	[  ]	[  ]	[  ]	[  ]	;
+%LET Cent = 	NA	NA	NA	NA	NA	NA;
+%LET RFbase =	NA	NA	NA	NA	NA	NA;
+/*Part 5.*/
+%LET Covars =  age sex region /*fh_cvd*/; 
+%LET CovClass =	0 	1	1		;      /* 1*/; 
+%LET CovOrder = NA	I	I;     /* I*/;
+%LET CovBase =  NA	first first;    /*first*/;
+*Part 6.*/;
+%LET Strata =;
+%LET Dob = ;
+%LET XAge= ; *optional 5 is default;
+%LET AgeBand = ;  *required for Analysis = "Multi-age group";
+%LET AgeMid =   ;    
+%Include "\\10.141.0.2\Kadoorie\weigan\T2D_GRS\Corinna\Corinna\Cox Analysis Sytem Routines\Run Cox Analysis System v2.sas";
+
+
+data grs_whole_cvdallevent;length Parameter $15;
+set Pe_WGRSBQT_cvdallevent	Pe_WGRSIRQT_cvdallevent	Pe_WGRST50QT_cvdallevent 
+Pe_UWGRSBQT_cvdallevent	Pe_UWGRSIRQT_cvdallevent	Pe_UWGRST50QT_cvdallevent;
+log10P=-log10(ProbChiSq);
+if Parameter='age' or Parameter='sex' or Parameter='region'  then delete;
+run; 
+proc export data=grs_whole_cvdallevent
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\grs_whole_cvdallevent_trend.csv'
+   dbms=csv
+   replace;
+run;
+
+/******************************************************************
+
+						ChDallevent
+
+******************************************************************/
+data sas.projchdgrsfu;
+set sas.projcvdgrs;
+if chd_base=0 then output;
+wGRSbsd=wGRSb;wGRSirsd=wGRSir;wGRSt50sd=wGRSt50 ;
+run;
+PROC STANDARD DATA=sas.projchdgrsfu MEAN=0 STD=1 OUT=sas.projt2dcvdgrs;
+  VAR wGRSbsd wGRSirsd wGRSt50sd ;
+RUN;
+
+%macro quint(dsn,var,quintvar);
+
+/* calculate the cutpoints for the quintiles */
+proc univariate noprint data=&dsn;
+  var &var;
+  output out=quintile pctlpts=33.33333 66.66666 pctlpre=pct;
+run;
+
+/* write the quintiles to macro variables */
+data _null_;
+set quintile;
+call symput('q1',pct33_33) ;
+call symput('q2',pct66_66) ;
+run;
+
+/* create the new variable in the main dataset */
+data &dsn;
+set &dsn;
+       if &var =. then &quintvar = .;
+  else if &var le &q1 then &quintvar=1;
+  else if &var le &q2 then &quintvar=2;
+  else &quintvar=3;
+run;
+%mend quint;
+%quint(sas.projchdgrsfu ,uwGRSt50,uwGRSt50qt);
+%quint(sas.projchdgrsfu ,uwGRSb,uwGRSbqt);
+%quint(sas.projchdgrsfu ,uwGRSir,uwGRSirqt);
+%quint(sas.projchdgrsfu ,wGRSt50,wGRSt50qt);
+%quint(sas.projchdgrsfu ,wGRSb,wGRSbqt);
+%quint(sas.projchdgrsfu ,wGRSir,wGRSirqt);
+
+
+%macro quint(dsn,var,quintvar);
+
+/* calculate the cutpoints for the quintiles */
+proc univariate noprint data=&dsn;
+  var &var;
+  output out=quintile pctlpts=50 pctlpre=pct;
+run;
+
+/* write the quintiles to macro variables */
+data _null_;
+set quintile;
+call symput('q1',pct50) ;
+run;
+
+/* create the new variable in the main dataset */
+data &dsn;
+set &dsn;
+       if &var =. then &quintvar = .;
+  else if &var le &q1 then &quintvar=1;
+  else &quintvar=2;
+run;
+%mend quint;
+%quint(sas.projchdgrsfu ,wGRSb,wGRSblh);
+%quint(sas.projchdgrsfu ,wGRSir,wGRSirlh);
+%quint(sas.projchdgrsfu ,uwGRSb,uwGRSblh);
+%quint(sas.projchdgrsfu ,uwGRSir,uwGRSirlh);
+
+PROC FREQ DATA= sas.projchdgrsfu;TABLE c_ep0003;RUN;
+
+/*cox regression macro*/
+%LET RunType = run;           
+%LET Analysis = simple; *Required   simple /     age-stratified   /  Multi-age group  ;
+%LET Project = Proj;
+%LET ProjDesc = Project Description;
+%LET RunDesc = Run Description;
+%LET InputDir =\\10.141.0.2\Kadoorie\weigan\DATASETS\SAS;            *Required;
+%LET InputFile = projchdgrsfu;                                            *Required;     
+%LET OutputDir = \\10.141.0.2\Kadoorie\weigan\cvd;
+%LET ID =   IID;
+/*Part 2.*/
+%LET LowFU   =;
+%LET HighFU  = ;
+%LET StartDate = 1JAN2004;
+%LET EndDate =  31DEC2013;
+%LET LowAge  = 35;
+%LET HighAge = 79;
+%LET WhereStmt = ;
+/*Part 3.*/
+%LET Outcome = c_ep0003;  *Required;
+%LET CensorValue =  	0;                          
+%LET CensorDate = censoring_date;
+%LET StudyDate =  study_date;
+%LET TimeUnit = day ;                             *Required; 
+%LET TimeVar = Time_in Time_out ;                     *Required;   
+/*Part 4.*/
+%LET RF  =wGRSbqt wGRSirqt wGRSt50qt uwGRSbqt uwGRSirqt uwGRSt50qt; 
+%LET RFband =	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	;
+%LET RFmid  = 	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	;
+%LET Cent = 	NA	NA	NA	NA	NA	NA;
+%LET RFbase =	first first	first	first	first	first;
+/*Part 5.*/
+%LET Covars =  age sex region /*fh_cvd*/; 
+%LET CovClass =	0 	1	1		;      /* 1*/; 
+%LET CovOrder = NA	I	I;     /* I*/;
+%LET CovBase =  NA	first first;    /*first*/;
+*Part 6.*/;
+%LET Strata =;
+%LET Dob = ;
+%LET XAge= ; *optional 5 is default;
+%LET AgeBand = ;  *required for Analysis = "Multi-age group";
+%LET AgeMid =   ;    
+%Include "\\10.141.0.2\Kadoorie\weigan\T2D_GRS\Corinna\Corinna\Cox Analysis Sytem Routines\Run Cox Analysis System v2.sas";
+
+
+data grs_whole_c_ep0003;length Parameter $15;
+set Pe_WGRSBQT_c_ep0003	Pe_WGRSIRQT_c_ep0003	Pe_WGRST50QT_c_ep0003 
+Pe_UWGRSBQT_c_ep0003	Pe_UWGRSIRQT_c_ep0003	Pe_UWGRST50QT_c_ep0003;
+log10P=-log10(ProbChiSq);
+if Parameter='age' or Parameter='sex' or Parameter='region'  then delete;
+run; 
+proc export data=grs_whole_c_ep0003
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\grs_whole_c_ep0003.csv'
+   dbms=csv
+   replace;
+run;
+
+
+/*cox regression macro*/
+%LET RunType = run;           
+%LET Analysis = simple; *Required   simple /     age-stratified   /  Multi-age group  ;
+%LET Project = Proj;
+%LET ProjDesc = Project Description;
+%LET RunDesc = Run Description;
+%LET InputDir =\\10.141.0.2\Kadoorie\weigan\DATASETS\SAS;            *Required;
+%LET InputFile = projchdgrsfu;                                            *Required;     
+%LET OutputDir = \\10.141.0.2\Kadoorie\weigan\cvd;
+%LET ID =   IID;
+/*Part 2.*/
+%LET LowFU   =;
+%LET HighFU  = ;
+%LET StartDate = 1JAN2004;
+%LET EndDate =  31DEC2013;
+%LET LowAge  = 35;
+%LET HighAge = 79;
+%LET WhereStmt = ;
+/*Part 3.*/
+%LET Outcome = c_ep0003;  *Required;
+%LET CensorValue =  	0;                          
+%LET CensorDate = censoring_date;
+%LET StudyDate =  study_date;
+%LET TimeUnit = day ;                             *Required; 
+%LET TimeVar = Time_in Time_out ;                     *Required;   
+/*Part 4.*/
+%LET RF  =wGRSbqt wGRSirqt wGRSt50qt uwGRSbqt uwGRSirqt uwGRSt50qt; 
+%LET RFband =	[  ]	[  ]	[  ]	[  ]	[  ]	[  ]	;
+%LET RFmid  = 	[  ]	[  ]	[  ]	[  ]	[  ]	[  ]	;
+%LET Cent = 	NA	NA	NA	NA	NA	NA;
+%LET RFbase =	NA	NA	NA	NA	NA	NA;
+/*Part 5.*/
+%LET Covars =  age sex region /*fh_cvd*/; 
+%LET CovClass =	0 	1	1		;      /* 1*/; 
+%LET CovOrder = NA	I	I;     /* I*/;
+%LET CovBase =  NA	first first;    /*first*/;
+*Part 6.*/;
+%LET Strata =;
+%LET Dob = ;
+%LET XAge= ; *optional 5 is default;
+%LET AgeBand = ;  *required for Analysis = "Multi-age group";
+%LET AgeMid =   ;    
+%Include "\\10.141.0.2\Kadoorie\weigan\T2D_GRS\Corinna\Corinna\Cox Analysis Sytem Routines\Run Cox Analysis System v2.sas";
+
+
+data grs_whole_c_ep0003;length Parameter $15;
+set Pe_WGRSBQT_c_ep0003	Pe_WGRSIRQT_c_ep0003	Pe_WGRST50QT_c_ep0003 
+Pe_UWGRSBQT_c_ep0003	Pe_UWGRSIRQT_c_ep0003	Pe_UWGRST50QT_c_ep0003;
+log10P=-log10(ProbChiSq);
+if Parameter='age' or Parameter='sex' or Parameter='region'  then delete;
+run; 
+proc export data=grs_whole_c_ep0003
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\grs_whole_c_ep0003_trend.csv'
+   dbms=csv
+   replace;
+run;
+
+
+
+
+/*cox regression macro*/
+%LET RunType = run;           
+%LET Analysis = simple; *Required   simple /     age-stratified   /  Multi-age group  ;
+%LET Project = Proj;
+%LET ProjDesc = Project Description;
+%LET RunDesc = Run Description;
+%LET InputDir =\\10.141.0.2\Kadoorie\weigan\DATASETS\SAS;            *Required;
+%LET InputFile = projchdgrsfu;                                            *Required;     
+%LET OutputDir = \\10.141.0.2\Kadoorie\weigan\cvd;
+%LET ID =   IID;
+/*Part 2.*/
+%LET LowFU   =;
+%LET HighFU  = ;
+%LET StartDate = 1JAN2004;
+%LET EndDate =  31DEC2013;
+%LET LowAge  = 35;
+%LET HighAge = 79;
+%LET WhereStmt = ;
+/*Part 3.*/
+%LET Outcome = c_ep0003;  *Required;
+%LET CensorValue =  	0;                          
+%LET CensorDate = censoring_date;
+%LET StudyDate =  study_date;
+%LET TimeUnit = day ;                             *Required; 
+%LET TimeVar = Time_in Time_out ;                     *Required;   
+/*Part 4.*/
+%LET RF  =wGRSbqt wGRSirqt wGRSt50qt uwGRSbqt uwGRSirqt uwGRSt50qt; 
+%LET RFband =	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	;
+%LET RFmid  = 	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	;
+%LET Cent = 	NA	NA	NA	NA	NA	NA;
+%LET RFbase =	first first	first	first	first	first;
+/*Part 5.*/
+%LET Covars =  age sex region /*fh_cvd*/; 
+%LET CovClass =	0 	1	1		;      /* 1*/; 
+%LET CovOrder = NA	I	I;     /* I*/;
+%LET CovBase =  NA	first first;    /*first*/;
+*Part 6.*/;
+%LET Strata =;
+%LET Dob = ;
+%LET XAge= ; *optional 5 is default;
+%LET AgeBand = ;  *required for Analysis = "Multi-age group";
+%LET AgeMid =   ;    
+%Include "\\10.141.0.2\Kadoorie\weigan\T2D_GRS\Corinna\Corinna\Cox Analysis Sytem Routines\Run Cox Analysis System v2.sas";
+
+
+data grs_whole_c_ep0003;length Parameter $15;
+set Pe_WGRSBQT_c_ep0003	Pe_WGRSIRQT_c_ep0003	Pe_WGRST50QT_c_ep0003 
+Pe_UWGRSBQT_c_ep0003	Pe_UWGRSIRQT_c_ep0003	Pe_UWGRST50QT_c_ep0003;
+log10P=-log10(ProbChiSq);
+if Parameter='age' or Parameter='sex' or Parameter='region'  then delete;
+run; 
+proc export data=grs_whole_c_ep0003
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\grs_whole_c_ep0003.csv'
+   dbms=csv
+   replace;
+run;
+
+
+/*cox regression macro*/
+%LET RunType = run;           
+%LET Analysis = simple; *Required   simple /     age-stratified   /  Multi-age group  ;
+%LET Project = Proj;
+%LET ProjDesc = Project Description;
+%LET RunDesc = Run Description;
+%LET InputDir =\\10.141.0.2\Kadoorie\weigan\DATASETS\SAS;            *Required;
+%LET InputFile = projchdgrsfu;                                            *Required;     
+%LET OutputDir = \\10.141.0.2\Kadoorie\weigan\cvd;
+%LET ID =   IID;
+/*Part 2.*/
+%LET LowFU   =;
+%LET HighFU  = ;
+%LET StartDate = 1JAN2004;
+%LET EndDate =  31DEC2013;
+%LET LowAge  = 35;
+%LET HighAge = 79;
+%LET WhereStmt = ;
+/*Part 3.*/
+%LET Outcome = c_ep0003;  *Required;
+%LET CensorValue =  	0;                          
+%LET CensorDate = censoring_date;
+%LET StudyDate =  study_date;
+%LET TimeUnit = day ;                             *Required; 
+%LET TimeVar = Time_in Time_out ;                     *Required;   
+/*Part 4.*/
+%LET RF  =wGRSbqt wGRSirqt wGRSt50qt uwGRSbqt uwGRSirqt uwGRSt50qt; 
+%LET RFband =	[  ]	[  ]	[  ]	[  ]	[  ]	[  ]	;
+%LET RFmid  = 	[  ]	[  ]	[  ]	[  ]	[  ]	[  ]	;
+%LET Cent = 	NA	NA	NA	NA	NA	NA;
+%LET RFbase =	NA	NA	NA	NA	NA	NA;
+/*Part 5.*/
+%LET Covars =  age sex region /*fh_cvd*/; 
+%LET CovClass =	0 	1	1		;      /* 1*/; 
+%LET CovOrder = NA	I	I;     /* I*/;
+%LET CovBase =  NA	first first;    /*first*/;
+*Part 6.*/;
+%LET Strata =;
+%LET Dob = ;
+%LET XAge= ; *optional 5 is default;
+%LET AgeBand = ;  *required for Analysis = "Multi-age group";
+%LET AgeMid =   ;    
+%Include "\\10.141.0.2\Kadoorie\weigan\T2D_GRS\Corinna\Corinna\Cox Analysis Sytem Routines\Run Cox Analysis System v2.sas";
+
+
+data grs_whole_c_ep0003;length Parameter $15;
+set Pe_WGRSBQT_c_ep0003	Pe_WGRSIRQT_c_ep0003	Pe_WGRST50QT_c_ep0003 
+Pe_UWGRSBQT_c_ep0003	Pe_UWGRSIRQT_c_ep0003	Pe_UWGRST50QT_c_ep0003;
+log10P=-log10(ProbChiSq);
+if Parameter='age' or Parameter='sex' or Parameter='region'  then delete;
+run; 
+proc export data=grs_whole_c_ep0003
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\grs_whole_c_ep0003_trend.csv'
+   dbms=csv
+   replace;
+run;
+
+
+
+data sas.projstrokegrsfu;
+set sas.projcvdgrs;
+if stroke_base=0 then output;
+wGRSbsd=wGRSb;wGRSirsd=wGRSir;wGRSt50sd=wGRSt50 ;
+run;
+PROC STANDARD DATA=sas.projstrokegrsfu MEAN=0 STD=1 OUT=sas.projt2dcvdgrs;
+  VAR wGRSbsd wGRSirsd wGRSt50sd ;
+RUN;
+
+%macro quint(dsn,var,quintvar);
+
+/* calculate the cutpoints for the quintiles */
+proc univariate noprint data=&dsn;
+  var &var;
+  output out=quintile pctlpts=33.33333 66.66666 pctlpre=pct;
+run;
+
+/* write the quintiles to macro variables */
+data _null_;
+set quintile;
+call symput('q1',pct33_33) ;
+call symput('q2',pct66_66) ;
+run;
+
+/* create the new variable in the main dataset */
+data &dsn;
+set &dsn;
+       if &var =. then &quintvar = .;
+  else if &var le &q1 then &quintvar=1;
+  else if &var le &q2 then &quintvar=2;
+  else &quintvar=3;
+run;
+%mend quint;
+%quint(sas.projstrokegrsfu ,uwGRSt50,uwGRSt50qt);
+%quint(sas.projstrokegrsfu ,uwGRSb,uwGRSbqt);
+%quint(sas.projstrokegrsfu ,uwGRSir,uwGRSirqt);
+%quint(sas.projstrokegrsfu ,wGRSt50,wGRSt50qt);
+%quint(sas.projstrokegrsfu ,wGRSb,wGRSbqt);
+%quint(sas.projstrokegrsfu ,wGRSir,wGRSirqt);
+%macro quint(dsn,var,quintvar);
+
+/* calculate the cutpoints for the quintiles */
+proc univariate noprint data=&dsn;
+  var &var;
+  output out=quintile pctlpts=50 pctlpre=pct;
+run;
+
+/* write the quintiles to macro variables */
+data _null_;
+set quintile;
+call symput('q1',pct50) ;
+run;
+
+/* create the new variable in the main dataset */
+data &dsn;
+set &dsn;
+       if &var =. then &quintvar = .;
+  else if &var le &q1 then &quintvar=1;
+  else &quintvar=2;
+run;
+%mend quint;
+%quint(sas.projstrokegrsfu ,wGRSb,wGRSblh);
+%quint(sas.projstrokegrsfu ,wGRSir,wGRSirlh);
+%quint(sas.projstrokegrsfu ,uwGRSb,uwGRSblh);
+%quint(sas.projstrokegrsfu ,uwGRSir,uwGRSirlh);
+
+PROC FREQ DATA= sas.projstrokegrsfu;TABLE c_ep0070;RUN;
+
+/*cox regression macro*/
+%LET RunType = run;           
+%LET Analysis = simple; *Required   simple /     age-stratified   /  Multi-age group  ;
+%LET Project = Proj;
+%LET ProjDesc = Project Description;
+%LET RunDesc = Run Description;
+%LET InputDir =\\10.141.0.2\Kadoorie\weigan\DATASETS\SAS;            *Required;
+%LET InputFile = projstrokegrsfu;                                            *Required;     
+%LET OutputDir = \\10.141.0.2\Kadoorie\weigan\cvd;
+%LET ID =   IID;
+/*Part 2.*/
+%LET LowFU   =;
+%LET HighFU  = ;
+%LET StartDate = 1JAN2004;
+%LET EndDate =  31DEC2013;
+%LET LowAge  = 35;
+%LET HighAge = 79;
+%LET WhereStmt = ;
+/*Part 3.*/
+%LET Outcome = c_ep0070;  *Required;
+%LET CensorValue =  	0;                          
+%LET CensorDate = censoring_date;
+%LET StudyDate =  study_date;
+%LET TimeUnit = day ;                             *Required; 
+%LET TimeVar = Time_in Time_out ;                     *Required;   
+/*Part 4.*/
+%LET RF  =wGRSbqt wGRSirqt wGRSt50qt uwGRSbqt uwGRSirqt uwGRSt50qt; 
+%LET RFband =	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	[1 2 3 4 ]	;
+%LET RFmid  = 	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	[1 2 3 ]	;
+%LET Cent = 	NA	NA	NA	NA	NA	NA;
+%LET RFbase =	first first	first	first	first	first;
+/*Part 5.*/
+%LET Covars =  age sex region /*fh_cvd*/; 
+%LET CovClass =	0 	1	1		;      /* 1*/; 
+%LET CovOrder = NA	I	I;     /* I*/;
+%LET CovBase =  NA	first first;    /*first*/;
+*Part 6.*/;
+%LET Strata =;
+%LET Dob = ;
+%LET XAge= ; *optional 5 is default;
+%LET AgeBand = ;  *required for Analysis = "Multi-age group";
+%LET AgeMid =   ;    
+%Include "\\10.141.0.2\Kadoorie\weigan\T2D_GRS\Corinna\Corinna\Cox Analysis Sytem Routines\Run Cox Analysis System v2.sas";
+
+
+data grs_whole_c_ep0070;length Parameter $15;
+set Pe_WGRSBQT_c_ep0070	Pe_WGRSIRQT_c_ep0070	Pe_WGRST50QT_c_ep0070 
+Pe_UWGRSBQT_c_ep0070	Pe_UWGRSIRQT_c_ep0070	Pe_UWGRST50QT_c_ep0070;
+log10P=-log10(ProbChiSq);
+if Parameter='age' or Parameter='sex' or Parameter='region'  then delete;
+run; 
+proc export data=grs_whole_c_ep0070
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\grs_whole_c_ep0070.csv'
+   dbms=csv
+   replace;
+run;
+
+
+/*cox regression macro*/
+%LET RunType = run;           
+%LET Analysis = simple; *Required   simple /     age-stratified   /  Multi-age group  ;
+%LET Project = Proj;
+%LET ProjDesc = Project Description;
+%LET RunDesc = Run Description;
+%LET InputDir =\\10.141.0.2\Kadoorie\weigan\DATASETS\SAS;            *Required;
+%LET InputFile = projstrokegrsfu;                                            *Required;     
+%LET OutputDir = \\10.141.0.2\Kadoorie\weigan\cvd;
+%LET ID =   IID;
+/*Part 2.*/
+%LET LowFU   =;
+%LET HighFU  = ;
+%LET StartDate = 1JAN2004;
+%LET EndDate =  31DEC2013;
+%LET LowAge  = 35;
+%LET HighAge = 79;
+%LET WhereStmt = ;
+/*Part 3.*/
+%LET Outcome = c_ep0070;  *Required;
+%LET CensorValue =  	0;                          
+%LET CensorDate = censoring_date;
+%LET StudyDate =  study_date;
+%LET TimeUnit = day ;                             *Required; 
+%LET TimeVar = Time_in Time_out ;                     *Required;   
+/*Part 4.*/
+%LET RF  =wGRSbqt wGRSirqt wGRSt50qt uwGRSbqt uwGRSirqt uwGRSt50qt; 
+%LET RFband =	[  ]	[  ]	[  ]	[  ]	[  ]	[  ]	;
+%LET RFmid  = 	[  ]	[  ]	[  ]	[  ]	[  ]	[  ]	;
+%LET Cent = 	NA	NA	NA	NA	NA	NA;
+%LET RFbase =	NA	NA	NA	NA	NA	NA;
+/*Part 5.*/
+%LET Covars =  age sex region /*fh_cvd*/; 
+%LET CovClass =	0 	1	1		;      /* 1*/; 
+%LET CovOrder = NA	I	I;     /* I*/;
+%LET CovBase =  NA	first first;    /*first*/;
+*Part 6.*/;
+%LET Strata =;
+%LET Dob = ;
+%LET XAge= ; *optional 5 is default;
+%LET AgeBand = ;  *required for Analysis = "Multi-age group";
+%LET AgeMid =   ;    
+%Include "\\10.141.0.2\Kadoorie\weigan\T2D_GRS\Corinna\Corinna\Cox Analysis Sytem Routines\Run Cox Analysis System v2.sas";
+
+
+data grs_whole_c_ep0070;length Parameter $15;
+set Pe_WGRSBQT_c_ep0070	Pe_WGRSIRQT_c_ep0070	Pe_WGRST50QT_c_ep0070 
+Pe_UWGRSBQT_c_ep0070	Pe_UWGRSIRQT_c_ep0070	Pe_UWGRST50QT_c_ep0070;
+log10P=-log10(ProbChiSq);
+if Parameter='age' or Parameter='sex' or Parameter='region'  then delete;
+run; 
+proc export data=grs_whole_c_ep0070
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\grs_whole_c_ep0070_trend.csv'
+   dbms=csv
+   replace;
+run;
