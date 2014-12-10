@@ -1,3 +1,4 @@
+
 /*cox regression macro*/
 %LET RunType = run;           
 %LET Analysis = simple; *Required   simple /     age-stratified   /  Multi-age group  ;
@@ -5,7 +6,7 @@
 %LET ProjDesc = Project Description;
 %LET RunDesc = Run Description;
 %LET InputDir =\\10.141.0.2\Kadoorie\weigan\DATASETS\SAS;            *Required;
-%LET InputFile = projstrokegrsfu;                                            *Required;     
+%LET InputFile = projchdgrsfu;                                            *Required;     
 %LET OutputDir = \\10.141.0.2\Kadoorie\weigan\cvd;
 %LET ID =   IID;
 /*Part 2.*/
@@ -17,7 +18,7 @@
 %LET HighAge = 79;
 %LET WhereStmt = ;
 /*Part 3.*/
-%LET Outcome = c_ep0070;  *Required;
+%LET Outcome = c_ep0003;  *Required;
 %LET CensorValue =  	0;                          
 %LET CensorDate = censoring_date;
 %LET StudyDate =  study_date;
@@ -43,15 +44,15 @@
 %Include "\\10.141.0.2\Kadoorie\weigan\T2D_GRS\Corinna\Corinna\Cox Analysis Sytem Routines\Run Cox Analysis System v2.sas";
 
 
-data grs_whole_c_ep0070;length Parameter $15;
-set Pe_WGRSBQT_c_ep0070	Pe_WGRSIRQT_c_ep0070	Pe_WGRST50QT_c_ep0070 
-Pe_UWGRSBQT_c_ep0070	Pe_UWGRSIRQT_c_ep0070	Pe_UWGRST50QT_c_ep0070;
+data grs_whole_c_ep0003;length Parameter $15;
+set Pe_WGRSBQT_c_ep0003	Pe_WGRSIRQT_c_ep0003	Pe_WGRST50QT_c_ep0003 
+Pe_UWGRSBQT_c_ep0003	Pe_UWGRSIRQT_c_ep0003	Pe_UWGRST50QT_c_ep0003;
 log10P=-log10(ProbChiSq);
 if Parameter='age' or Parameter='sex' or Parameter='region' or Parameter='smoking' or Parameter='alcohol'
  or Parameter='met_cat' or Parameter='income' or Parameter='htn' or Parameter='diabetesall' or Parameter='sbp_mean' or Parameter='bmi' then delete;
 run; 
-proc export data=grs_whole_c_ep0070
-   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\grs_whole_c_ep0070_full.csv'
+proc export data=grs_whole_c_ep0003
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\grs_whole_c_ep0003_full.csv'
    dbms=csv
    replace;
 run;
@@ -64,7 +65,7 @@ run;
 %LET ProjDesc = Project Description;
 %LET RunDesc = Run Description;
 %LET InputDir =\\10.141.0.2\Kadoorie\weigan\DATASETS\SAS;            *Required;
-%LET InputFile = projstrokegrsfu;                                            *Required;     
+%LET InputFile = projchdgrsfu;                                            *Required;     
 %LET OutputDir = \\10.141.0.2\Kadoorie\weigan\cvd;
 %LET ID =   IID;
 /*Part 2.*/
@@ -76,7 +77,7 @@ run;
 %LET HighAge = 79;
 %LET WhereStmt = ;
 /*Part 3.*/
-%LET Outcome = c_ep0070;  *Required;
+%LET Outcome = c_ep0003;  *Required;
 %LET CensorValue =  	0;                          
 %LET CensorDate = censoring_date;
 %LET StudyDate =  study_date;
@@ -102,15 +103,15 @@ run;
 %Include "\\10.141.0.2\Kadoorie\weigan\T2D_GRS\Corinna\Corinna\Cox Analysis Sytem Routines\Run Cox Analysis System v2.sas";
 
 
-data grs_whole_c_ep0070;length Parameter $15;
-set Pe_WGRSBQT_c_ep0070	Pe_WGRSIRQT_c_ep0070	Pe_WGRST50QT_c_ep0070 
-Pe_UWGRSBQT_c_ep0070	Pe_UWGRSIRQT_c_ep0070	Pe_UWGRST50QT_c_ep0070;
+data grs_whole_c_ep0003;length Parameter $15;
+set Pe_WGRSBQT_c_ep0003	Pe_WGRSIRQT_c_ep0003	Pe_WGRST50QT_c_ep0003 
+Pe_UWGRSBQT_c_ep0003	Pe_UWGRSIRQT_c_ep0003	Pe_UWGRST50QT_c_ep0003;
 log10P=-log10(ProbChiSq);
 if Parameter='age' or Parameter='sex' or Parameter='region' or Parameter='smoking' or Parameter='alcohol'
  or Parameter='met_cat' or Parameter='income' or Parameter='htn' or Parameter='diabetesall' or Parameter='sbp_mean' or Parameter='bmi' then delete;
 run; 
-proc export data=grs_whole_c_ep0070
-   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\grs_whole_c_ep0070_trend_full.csv'
+proc export data=grs_whole_c_ep0003
+   outfile='\\10.141.0.2\Kadoorie\weigan\cvd\grs_whole_c_ep0003_trend_full.csv'
    dbms=csv
    replace;
 run;
