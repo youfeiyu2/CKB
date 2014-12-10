@@ -1,13 +1,3 @@
-data sas.projstrokegrsfu;
-set sas.projcvdgrs;
-if stroke_base=0 then output;
-wGRSbsd=wGRSb;wGRSirsd=wGRSir;wGRSt50sd=wGRSt50 ;
-run;
-PROC STANDARD DATA=sas.projstrokegrsfu MEAN=0 STD=1 OUT=sas.projt2dcvdgrs;
-  VAR wGRSbsd wGRSirsd wGRSt50sd ;
-RUN;
-
-%macro quint(dsn,var,quintvar);
 
 /*cox regression macro*/
 %LET RunType = run;           
