@@ -1,0 +1,232 @@
+total=read.table('//10.141.0.2/Kadoorie/weigan/T2D_GRS/allt2dsnp_total.raw',header=T)
+names(total)[]=sapply(strsplit(names(total)[],'_',1),'[',1)
+library(sas7bdat)
+total_phe=read.sas7bdat('//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/projt2d_unrelated.sas7bdat',debug=F)
+total_pg=merge(total,total_phe,by='IID',all.y=T)
+total_pg$SEX=ifelse(total_pg$sex==1,2,1)
+total_pg$PHENO=ifelse(total_pg$diabetesall==1,2,1)
+total_pg$Base_T2D=ifelse(total_pg$has_diabetes==1,2,1)
+total_pg$Base_T2D_cc=ifelse(total_pg$has_diabetes_cc==1,2,ifelse(total_pg$has_diabetes_cc==0,1,NA))
+total_pg$PHENO_cc=ifelse(total_pg$diabetes_cc==1,2,ifelse(total_pg$diabetes_cc==0,1,NA))
+total_pg_plink=total_pg[,c('FID','IID','PAT','MAT','SEX','PHENO','PC1_mean','Base_T2D','PHENO_cc','Base_T2D_cc','age','region')]
+total_pg_plink[is.na(total_pg_plink)]=-9
+nrow(total_pg_plink$PC1)
+
+write.table(total_phe[,c(1:2,10)],'//10.141.0.2/Kadoorie/weigan/T2D_GRS/updatesex_all.txt',row.names=F,quote=F)
+write.table(total_pg_plink,'//10.141.0.2/Kadoorie/weigan/T2D_GRS/unrelated_pheno_plink.txt',row.names=F,quote=F)
+write.table(total_pg_plink[,c(1:6,11,12)],'//10.141.0.2/Kadoorie/weigan/T2D_GRS/unrelated_t2d_plink.txt',row.names=F,quote=F)
+
+#recode as raw data
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --set-hh-missing --recodeA --recode-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --out  \\10.141.0.2\Kadoorie\weigan\T2D_GRS\allt2dsnp
+
+#\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_total_t2d_updatessex --logistic --ci 0.95 --reference-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --pheno \\10.141.0.2\Kadoorie\weigan\T2D_GRS\total_pheno.txt --pheno-name PHENO --covar \\10.141.0.2\Kadoorie\weigan\T2D_GRS\total_pheno.txt --hide-covar --sex --covar-name age,region,PC1 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\single_snp_association\total_t2d_add
+#\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_total_t2d_updatessex --logistic --ci 0.95 --reference-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --pheno \\10.141.0.2\Kadoorie\weigan\T2D_GRS\total_pheno.txt --pheno-name Base_T2D --covar \\10.141.0.2\Kadoorie\weigan\T2D_GRS\total_pheno.txt --hide-covar --sex --covar-name age,region,PC1 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\single_snp_association\total_prevelant_t2d_add
+
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --logistic --ci 0.95 --reference-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --pheno \\10.141.0.2\Kadoorie\weigan\T2D_GRS\unrelated_pheno_plink.txt --pheno-name PHENO --covar \\10.141.0.2\Kadoorie\weigan\T2D_GRS\unrelated_pheno_plink.txt --hide-covar --sex --covar-name age,region,PC1_mean --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\single_snp_association\unrelated_t2d_add
+#\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --logistic --ci 0.95 --reference-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --pheno \\10.141.0.2\Kadoorie\weigan\T2D_GRS\unrelated_pheno_plink.txt --pheno-name Base_T2D --covar \\10.141.0.2\Kadoorie\weigan\T2D_GRS\unrelated_pheno_plink.txt --hide-covar --sex --covar-name age,region,PC1 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\single_snp_association\unrelated_prevelant_t2d_add
+
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --logistic --ci 0.95 --reference-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --pheno \\10.141.0.2\Kadoorie\weigan\T2D_GRS\unrelated_pheno_plink.txt --pheno-name PHENO_cc --covar \\10.141.0.2\Kadoorie\weigan\T2D_GRS\unrelated_pheno_plink.txt --hide-covar --sex --covar-name age,region,PC1_mean --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\single_snp_association\unrelated_t2d_add_cc
+#\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --logistic --ci 0.95 --reference-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --pheno \\10.141.0.2\Kadoorie\weigan\T2D_GRS\unrelated_pheno_plink.txt --pheno-name Base_T2D_cc --covar \\10.141.0.2\Kadoorie\weigan\T2D_GRS\unrelated_pheno_plink.txt --hide-covar --sex --covar-name age,region,PC1 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\single_snp_association\unrelated_prevelant_t2d_add_cc
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --freq --reference-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\frequency
+
+
+
+#generate score impute based on local risk allele frequency
+#cluseter
+
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 4  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 12 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\wt2d_score_12 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 4  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 16 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\wt2d_score_16 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 4  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 26 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\wt2d_score_26 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 4  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 36 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\wt2d_score_36 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 4  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 46 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\wt2d_score_46 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 4  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 52 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\wt2d_score_52 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 4  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 58 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\wt2d_score_58 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 4  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 68 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\wt2d_score_68 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 4  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 78 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\wt2d_score_78 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 4  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 88 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\wt2d_score_88 
+#######imputed and unweighted
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 5  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 12 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_12uw 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 5  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 16 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_16uw 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 5  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 26 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_26uw
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 5  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 36 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_36uw 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 5  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 46 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_46uw 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 5  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 52 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_52uw 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 5  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 58 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_58uw 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 5  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 68 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_68uw 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 5  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 78 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_78uw 
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d_updatessex --score \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_weight.txt 1 3 5  --q-score-range \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_range.txt \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_data.txt --within \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-clusters \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\region.txt --keep-cluster-names 88 --out \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink_score\t2d_score_88uw 
+
+
+
+
+cd //10.141.0.2/Kadoorie/weigan/T2D_GRS/plink_score/
+        
+ls -v wt2d_score_*.GRS_t50.profile|xargs cat |sort|tail -n+10 >wGRSt50
+ls -v wt2d_score_*.GRS_t53.profile |xargs cat |sort|tail -n+10 >wGRSt53
+ls -v wt2d_score_*.GRS_b.profile |xargs cat |sort|tail -n+10 >wGRSb
+ls -v wt2d_score_*.GRS_b2.profile |xargs cat |sort|tail -n+10 >wGRSb2
+ls -v wt2d_score_*.GRS_ir.profile |xargs cat |sort|tail -n+10 >wGRSir
+ls -v wt2d_score_*.GRS_ir2.profile |xargs cat |sort|tail -n+10 >wGRSir2
+
+ls -v t2d_score_*uw.GRS_t50.profile|xargs cat |sort|tail -n+10 >GRSt50
+ls -v t2d_score_*uw.GRS_t53.profile |xargs cat |sort|tail -n+10 >GRSt53
+ls -v t2d_score_*uw.GRS_b.profile |xargs cat |sort|tail -n+10 >GRSb
+ls -v t2d_score_*uw.GRS_b2.profile |xargs cat |sort|tail -n+10 >GRSb2
+ls -v t2d_score_*uw.GRS_ir.profile |xargs cat |sort|tail -n+10 >GRSir
+ls -v t2d_score_*uw.GRS_ir2.profile |xargs cat |sort|tail -n+10 >GRSir2
+
+
+grsb=read.table('//10.141.0.2/Kadoorie/weigan/T2D_GRS/plink_score/GRSb',header=T)
+grsb$grsb=round(grsb$SCORE*48)
+grsb=grsb[,c(1,2,7)]
+head(grsb)
+grsb2=read.table('//10.141.0.2/Kadoorie/weigan/T2D_GRS/plink_score/GRSb2',header=T)
+grsb2$grsb2=round(grsb2$SCORE*50)
+grsb2=grsb2[,c(1,2,7)]
+head(grsb2)
+
+grsir=read.table('//10.141.0.2/Kadoorie/weigan/T2D_GRS/plink_score/GRSir',header=T)
+grsir$grsir=round(grsir$SCORE*12)
+grsir=grsir[,c(1,2,7)]
+head(grsir)
+grsir2=read.table('//10.141.0.2/Kadoorie/weigan/T2D_GRS/plink_score/GRSir2',header=T)
+grsir2$grsir2=round(grsir2$SCORE*16)
+grsir2=grsir2[,c(1,2,7)]
+head(grsir2)
+
+grst50=read.table('//10.141.0.2/Kadoorie/weigan/T2D_GRS/plink_score/GRSt50',header=T)
+grst50$grst50=round(grst50$SCORE*100)
+grst50=grst50[,c(1,2,7)]
+head(grst50)
+grst53=read.table('//10.141.0.2/Kadoorie/weigan/T2D_GRS/plink_score/GRSt53',header=T)
+grst53$grst53=round(grst53$SCORE*106)
+grst53=grst53[,c(1,2,7)]
+head(grst53)
+grs=cbind(grst50,grsb,grsir,grst53,grsb2,grsir2)
+grs=grs[,c(1:2,3,6,9,12,15,18)]
+
+
+###############
+
+wgrsb=read.table('//10.141.0.2/Kadoorie/weigan/T2D_GRS/plink_score/wGRSb',header=T)
+wgrsb$wgrsb=wgrsb$SCORE*48
+wgrsb=wgrsb[,c(1,2,7)]
+head(wgrsb)
+wgrsb2=read.table('//10.141.0.2/Kadoorie/weigan/T2D_GRS/plink_score/wGRSb2',header=T)
+wgrsb2$wgrsb2=wgrsb2$SCORE*50
+wgrsb2=wgrsb2[,c(1,2,7)]
+head(wgrsb2)
+
+wgrsir=read.table('//10.141.0.2/Kadoorie/weigan/T2D_GRS/plink_score/wGRSir',header=T)
+wgrsir$wgrsir=wgrsir$SCORE*12
+wgrsir=wgrsir[,c(1,2,7)]
+head(wgrsir)
+wgrsir2=read.table('//10.141.0.2/Kadoorie/weigan/T2D_GRS/plink_score/wGRSir2',header=T)
+wgrsir2$wgrsir2=wgrsir2$SCORE*16
+wgrsir2=wgrsir2[,c(1,2,7)]
+head(wgrsir2)
+
+wgrst50=read.table('//10.141.0.2/Kadoorie/weigan/T2D_GRS/plink_score/wGRSt50',header=T)
+wgrst50$wgrst50=wgrst50$SCORE*100
+wgrst50=wgrst50[,c(1,2,7)]
+head(wgrst50)
+
+wgrst53=read.table('//10.141.0.2/Kadoorie/weigan/T2D_GRS/plink_score/wGRSt53',header=T)
+wgrst53$wgrst53=wgrst53$SCORE*106
+wgrst53=wgrst53[,c(1,2,7)]
+head(wgrst53)
+wgrs=cbind(wgrst50,wgrsb,wgrsir,wgrst53,wgrsb2,wgrsir2)
+wgrs=wgrs[,c(1:2,3,6,9,12,15,18)]
+head(wgrs)
+unrelated_grs=merge(grs,wgrs,by=c('FID','IID'))
+head(unrelated_grs)
+
+hist(unrelated_grs$grst50,50)
+hist(unrelated_grs$grst53,50)
+hist(unrelated_grs$grsb,50)
+hist(unrelated_grs$grsb2,50)
+hist(unrelated_grs$grsir)
+hist(unrelated_grs$grsir2)
+grs_quintile=function(data,x,xquintile){
+        data[,paste(xquantile)]=cut(data[,x],quantile(data[,x],c(0,0.2,0.4,0.6,0.8,1),na.rm=T),include.lowest=TRUE)
+        levels(data[,paste(xquantile)])=c(1,2,3,4,5)
+        data[,paste(xquantile)]
+}
+grs_quantile=function(data,x,xquantile){
+        data[,paste(xquantile)]=cut(data[,x],quantile(data[,x],c(0,0.25,0.5,0.75,1),na.rm=T),include.lowest=TRUE)
+        levels(data[,paste(xquantile)])=c(1,2,3,4)
+        data[,paste(xquantile)]
+}
+grs_tertile=function(data,x,xtertile){
+        data[,paste(xquantile)]=cut(data[,x],quantile(data[,x],c(0,1/3,2/3,1),na.rm=T),include.lowest=TRUE)
+        levels(data[,paste(xquantile)])=c(1,2,3)
+        data[,paste(xquantile)]
+}
+unrelated_grs$grst50cat=grs_quintile(unrelated_grs,'grst50','grst50cat')
+unrelated_grs$grst53cat=grs_quintile(unrelated_grs,'grst53','grst53cat')
+unrelated_grs$grsbcat=grs_quantile(unrelated_grs,'grsb','grsbcat')
+unrelated_grs$grsb2cat=grs_quantile(unrelated_grs,'grsb2','grsb2cat')
+unrelated_grs$grsircat=grs_quantile(unrelated_grs,'grsir','grsircat')
+unrelated_grs$grsir2cat=grs_quantile(unrelated_grs,'grsb2','grsir2cat')
+
+unrelated_grs$wgrst50cat=grs_quintile(unrelated_grs,'wgrst50','grst50cat')
+unrelated_grs$wgrst53cat=grs_quintile(unrelated_grs,'wgrst53','grst53cat')
+unrelated_grs$wgrsbcat=grs_quantile(unrelated_grs,'wgrsb','grsbcat')
+unrelated_grs$wgrsb2cat=grs_quantile(unrelated_grs,'wgrsb2','grsb2cat')
+unrelated_grs$wgrsircat=grs_quantile(unrelated_grs,'wgrsir','grsircat')
+unrelated_grs$wgrsir2cat=grs_quantile(unrelated_grs,'wgrsb2','grsir2cat')
+
+
+hist(as.numeric(unrelated_grs$wgrst50cat))
+hist(as.numeric(unrelated_grs$wgrst53cat))
+hist(as.numeric(unrelated_grs$wgrsbcat))
+hist(as.numeric(unrelated_grs$wgrsb2cat))
+hist(as.numeric(unrelated_grs$wgrsircat))
+hist(as.numeric(unrelated_grs$wgrsir2cat))
+
+#################
+
+unr_grs_pg=merge(unrelated_grs,total_phe,by=c('IID'),all.y=T)
+
+grsglm<-function(dataset,disease){
+        
+        results=array(NA,dim=c(12,7))
+        for (i in 3:14){
+                gl<-summary(glm(dataset[,disease] ~dataset[,i] + 
+                                        dataset[,'sex'] + dataset[,'age'] + 
+                                        dataset[,'region']+dataset[,'PC1'], family=binomial))
+                results[i-2,]=c(names(dataset)[i],round(gl$coefficients[2,1:2],4),
+                                round(exp(gl$coefficients[2,1]+0),4), 
+                                round(exp(gl$coefficients[2,1]-gl$coefficients[2,2]*1.96),4),
+                                round(exp(gl$coefficients[2,1]+gl$coefficients[2,2]*1.96),4),
+                                gl$coefficients[2,4])
+                i=i+1
+        }
+        
+        results=as.data.frame(results)
+        colnames(results)[]=c('GRS','Beta','Std.Error','OR','95%CI_LOW','95%CI_UP','P')
+        write.csv(results,paste('//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/',c(disease),'_association.csv'),row.names=F,quote=F)
+}
+grsglm(dataset = unr_grs_pg,disease = 'diabetesall')
+grsglm(dataset = unr_grs_pg,disease = 'has_diabetes')
+grsglm(dataset = unr_grs_pg,disease = 'diabetes_cc')
+grsglm(dataset = unr_grs_pg,disease = 'has_diabetes_cc')
+
+
+gl=summary(glm(unr_grs_pg$diabetes_cc~unr_grs_pg$wgrst50cat+unr_grs_pg$sex+unr_grs_pg$age+unr_grs_pg$region+unr_grs_pg$PC1),family=binomial)
+gl
+
+
+gl=summary(glm(unr_grs_pg$diabetes_cc~unr_grs_pg$grsircat+unr_grs_pg$sex+unr_grs_pg$age+unr_grs_pg$region+unr_grs_pg$PC1),family=binomial)
+gl
+
+gl=summary(glm(unr_grs_pg$diabetes_cc~unr_grs_pg$grsbcat+unr_grs_pg$sex+unr_grs_pg$age+unr_grs_pg$region+unr_grs_pg$PC1),family=binomial)
+gl
+gl=summary(glm(unr_grs_pg$diabetes_cc~unr_grs_pg$grsbcat+unr_grs_pg$sex+unr_grs_pg$age+unr_grs_pg$region+unr_grs_pg$PC1),family=binomial)
+gl
+names(unr_grs_pg)
+
+write.csv(unr_grs_pg,'//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/unr_grs_pg.csv',row.names=F,quote=F)
+
+
+
