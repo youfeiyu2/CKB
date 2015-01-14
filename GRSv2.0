@@ -1,0 +1,37 @@
+#replace the missing genotype with the mean value of risk allele count
+t2d_geno=read.table('//10.141.0.2/Kadoorie/weigan/T2D_GRS/allt2dsnp.raw',header=T)
+names(t2d_geno)[]=sapply(strsplit(names(t2d_geno)[],'_',1),'[',1)
+region=read.table('//10.141.0.2/Kadoorie/weigan/T2D_GRS/plink_score/region.txt',header=F)
+names(region)=c('FID','IID','region')
+raw=merge(region,t2d_geno,by=c('FID','IID'))
+freq_by_region=read.table('//10.141.0.2/Kadoorie/weigan/T2D_GRS/plink_score/freq_by_region',header=T)
+regionlist=c(12,16,26,36,46,52,58,68,78,88)
+impute=as.data.frame(array(NA,dim=c(82477,60)))
+names(impute)[]=names(raw)
+impute[,1:7]=raw[,1:7]
+for (i in 1:10){
+        for (j in 8:60){
+        impute[impute$region==regionlist[i],j]=ifelse(is.na(raw[ raw$region==regionlist[i],j]),
+                                                      round(freq_by_region[ freq_by_region$CLST==regionlist[i] & freq_by_region$SNP==names(raw)[j],'MAF']*2,2),
+                                                      round(raw[ raw$region==regionlist[i],j],0))
+        j=j+1
+        }
+        i=i+1
+}
+beta=c("rs340874", "rs7578597", "rs11708067", "rs1470579", "rs16861329", "rs6815464", "rs7754840", "rs4607517", "rs6467136", "rs7041847", "rs10811661", "rs1111875", "rs7901695", "rs2237892", "rs5215", "rs1552224", "rs10830963", "rs1359790", "rs7172432", "rs2028299", "rs4430796", "rs6017317", "rs13266634", "rs8042680", "rs2191349")
+ir=c("rs780094", "rs3923113", "rs2943641", "rs1801282", "rs972283", "rs1531343")
+impute$grst=rowSums(impute[,8:60])
+impute$grsb=rowSums(impute[,beta])
+impute$grsir=rowSums(impute[,ir])
+summary(impute$grst)
+summary(impute$grsb)
+summary(impute$grsir)
+
+raw$grst=rowSums(raw[,8:60])
+raw$grsb=rowSums(raw[,beta])
+raw$grsir=rowSums(raw[,ir])
+summary(raw$grst)
+summary(raw$grsb)
+summary(raw$grsir)
+raw$na=apply(raw[,8:60],1,function(x) sum(as.numeric(is.na(x))))
+
