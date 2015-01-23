@@ -72,11 +72,11 @@ run;
 #\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\DATASETS\CKB_Clean_new_id_t2d_forward --logistic --ci 0.95 --reference-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --pheno \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\CKB_CLEAN_Pheno.txt --pheno-name Pheno --covar \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\CKB_CLEAN_Pheno.txt --hide-covar --sex --covar-name age,region --out \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\singlesnp\clean_t2d_add_nopc
 a=read.table('//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/add_clean.raw',sep=' ',header=T)
 names(a)[]=sapply(strsplit(names(a)[],'_',1),'[',1)
-write.csv(a,'//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/add_clean.csv',row.names=F,quote=F,na='')
+write.csv(a,'//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/add_clean.csv',row.names=F,quote=F,na='.')
 
 \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d --logistic --ci 0.95 --reference-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --pheno \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\CKB_UNRELATED_Pheno.txt --pheno-name Pheno --covar \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\CKB_UNRELATED_Pheno.txt --hide-covar --sex --covar-name age,region,PC1 --out \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\singlesnp\unrelated_t2d_add
 \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d --extract \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\meta_clean.txt --set-hh-missing --recodeA --recode-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --out  \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\add_unrealated
 \\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d --extract \\10.141.0.2\Kadoorie\weigan\T2D_GRS\grssnps.txt --set-hh-missing --recodeA --recode-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --out  \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\add_unrealated_grs
 a=read.table('//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/add_unrealated.raw',sep=' ',header=T)
 names(a)[]=sapply(strsplit(names(a)[],'_',1),'[',1)
-write.csv(a,'//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/add_unrealated.csv',row.names=F,quote=F,na='')
+write.csv(a,'//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/add_unrealated.csv',row.names=F,quote=F,na='.')
