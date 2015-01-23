@@ -1,0 +1,82 @@
+proc sort data=sas.Bug16508;
+   by studyid;
+run;
+proc sort data=sas.baseline;
+   by studyid;
+run;
+proc sort data=sas.endpoints;
+   by studyid;
+run;
+
+data sas.proj1;
+merge sas.baseline sas.Bug16508 sas.endpoints ;
+  by studyid;
+run;
+
+data sas.projt2d;
+set sas.proj1 ;
+age=age_at_study_date;sex=is_female;region=region_code;
+waist=waist_mm/10; hip=hip_mm/10;fatp=fat_percent_x10/10;whr=waist_hip_ratio;
+fast_hours=hours_since_last_ate_x10/10;
+rbg=test_random_glucose_x10/10;
+fbg=retest_fast_glucose_x10/10;
+bmi=bmi_calc ;
+diabetesall=max(has_diabetes,c_ep0049,c_ep0048);
+diabetes_family=max(mother_diabetes,father_diabetes);diabeteage=diabetes_diag_age;
+urban=region_is_urban;edu=highest_education;income=household_income;
+alcohol=alcohol_category;smoking= smoking_category;
+diabetesevent=max(c_ep0049,c_ep0048);
+diabetesevent_date=min(c_ep0049_date, c_ep0048_date);
+if diabetesall=1 then diabetes_cc=1;else if diabetesall=0 &((7>rbg>6.1 & fast_hours>8) or (11.1>rbg>7.8 & fast_hours<8)or 7>fbg>6.1 or 11.1>fbg>7.8) then diabetes_cc=.; else diabetes_cc=0;
+if has_diabetes=1 then has_diabetes_cc=1;else if has_diabetes=0 &((7>rbg>6.1 & fast_hours>8) or (11.1>rbg>7.8 & fast_hours<8)or 7>fbg>6.1 or 11.1>fbg>7.8) then has_diabetes_cc=.; else has_diabetes_cc=0;
+format diabetesevent_date datetime.;
+IID=studyid*1;
+keep studyid IID study_date censoring_date Dob age sex region urban bmi waist hip fatp whr rbg fbg
+alcohol smoking met edu income
+has_diabetes diabetes_cc has_diabetes_cc diabetes_family  fbg diabetes_diag
+diabetesall diabetesevent diabetesevent_date ;
+run;
+
+data sas.cleanid;
+set cleanid;
+FID=V1;IID=V2;
+keep FID IID;
+run;
+proc sort data=sas.cleanid;by IID;run;
+proc sort data=sas.projt2d;by IID;run;
+data t2d.projt2d_allclean;
+merge sas.cleanid sas.projt2d;by IID;
+IF FID=' ' or studyid=. then delete;
+if region=12 then PC1=-0.930829734;else if region=16 then PC1=-0.870067131;
+else if region=26 then PC1=1.694272573;else if region=36 then PC1=-0.017126944;
+else if region=46 then PC1=1.606334784;else if region=52 then PC1=0.538835424;
+else if region=58 then PC1=-0.825638277;else if region=68 then PC1=-1.106680921;
+else if region=78 then PC1=0.154438995;else if region=88 then PC1=0.912110009;
+RUN;
+data t2d.plinkpheno;
+set  t2d.projt2d_allclean;
+if diabetesall=1 then Pheno=2;else Pheno=1;
+keep FID IID Pheno region age PC1;
+run;
+
+proc export data=t2d.plinkpheno
+   outfile='\\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\CKB_CLEAN_Pheno.txt'
+   dbms=TAB
+   replace;
+run;
+
+#
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\DATASETS\CKB_Clean_new_id_t2d_forward --logistic --ci 0.95 --reference-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --pheno \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\CKB_CLEAN_Pheno.txt --pheno-name Pheno --covar \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\CKB_CLEAN_Pheno.txt --hide-covar --sex --covar-name age,region,PC1 --out \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\singlesnp\clean_t2d_add
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\DATASETS\CKB_Clean_new_id_t2d_forward --reference-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --freq --out \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\singlesnp\clean_t2d_freq
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\DATASETS\CKB_Clean_new_id_t2d_forward --extract \\10.141.0.2\Kadoorie\weigan\T2D_GRS\grssnps.txt --set-hh-missing --recodeA --recode-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --out  \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\add_clean_grs
+#\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\DATASETS\CKB_Clean_new_id_t2d_forward --logistic --ci 0.95 --reference-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --pheno \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\CKB_CLEAN_Pheno.txt --pheno-name Pheno --covar \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\CKB_CLEAN_Pheno.txt --hide-covar --sex --covar-name age,region --out \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\singlesnp\clean_t2d_add_nopc
+a=read.table('//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/add_clean.raw',sep=' ',header=T)
+names(a)[]=sapply(strsplit(names(a)[],'_',1),'[',1)
+write.csv(a,'//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/add_clean.csv',row.names=F,quote=F,na='')
+
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d --logistic --ci 0.95 --reference-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --pheno \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\CKB_UNRELATED_Pheno.txt --pheno-name Pheno --covar \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\CKB_UNRELATED_Pheno.txt --hide-covar --sex --covar-name age,region,PC1 --out \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\singlesnp\unrelated_t2d_add
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d --extract \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\meta_clean.txt --set-hh-missing --recodeA --recode-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --out  \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\add_unrealated
+\\10.141.0.2\Kadoorie\weigan\T2D_GRS\plink --bfile \\10.141.0.2\Kadoorie\weigan\T2D_GRS\CKB_Clean_unrelated_t2d --extract \\10.141.0.2\Kadoorie\weigan\T2D_GRS\grssnps.txt --set-hh-missing --recodeA --recode-allele \\10.141.0.2\Kadoorie\weigan\DATASETS\risk.allele.code --out  \\10.141.0.2\Kadoorie\weigan\T2D_REPLICATION\add_unrealated_grs
+a=read.table('//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/add_unrealated.raw',sep=' ',header=T)
+names(a)[]=sapply(strsplit(names(a)[],'_',1),'[',1)
+write.csv(a,'//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/add_unrealated.csv',row.names=F,quote=F,na='')
