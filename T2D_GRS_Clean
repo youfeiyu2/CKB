@@ -92,6 +92,7 @@ grs_acc=impute[,c(1:2,61:63)]
 grsc=cbind(grs_agen,grs_gwas,grs_meta,grs_acc)
 grsc=grsc[,c(1:5,8:10,13:15,18:20)]
 
+write.csv(grsc,'//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/grs_score_clean.csv',row.names=F,quote=F,na='.')
 
 ########################
 # association analysis
@@ -99,16 +100,33 @@ grsc=grsc[,c(1:5,8:10,13:15,18:20)]
 phe=read.table('//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/CKB_CLEAN_Pheno.txt',header=T)
 phe$T2D=ifelse(phe$Pheno==1,0,ifelse(phe$Pheno==2,1,NA))
 grs=merge(phe,grsc,by=c('FID','IID'))
-#quantile
-grs_quantile=function(data,x,xquantile){
-        data[,paste(xquantile)]=cut(data[,x],quantile(data[,x],c(0,0.25,0.5,0.75,1),na.rm=T),include.lowest=TRUE)
-        levels(data[,paste(xquantile)])=c(1,2,3,4)
-}
-for (i in 9:20){
-        grs[,paste(names(grs)[i],'q',sep='_')]=cut(grs[,i],quantile(grs[,i],c(0,0.25,0.5,0.75,1),na.rm=T),include.lowest=TRUE)
-        levels(grs[,paste(names(grs)[i],'q',sep='_')])=c(1,2,3,4)
+grs=grs[,c(1:8,9,12,15,18,10,13,16,19,11,14,17,20)]
+t2d_free=read.table('//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/t2d_free.txt',header=T)
+grs_t2dfree=merge(t2d_free,grsc,by=c('FID','IID'))
+for (i in 3:14){
+        grs_t2dfree[,paste(names(grs_t2dfree)[i],'q',sep='_')]=cut(grs_t2dfree[,i],quantile(grs_t2dfree[,i],c(0,0.333,0.666,1),na.rm=T),include.lowest=TRUE)
+        levels(grs_t2dfree[,paste(names(grs_t2dfree)[i],'q',sep='_')])=seq(1,3,1)
         i=i+1
 }
+write.csv(grs_t2dfree,'//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/grs_score_clean_t2dfree.csv',row.names=F,quote=F,na='.')
+
+#quantile
+for (i in 9:12){
+        grs[,paste(names(grs)[i],'q',sep='_')]=cut(grs[,i],quantile(grs[,i],seq(0,1,0.1),na.rm=T),include.lowest=TRUE)
+        levels(grs[,paste(names(grs)[i],'q',sep='_')])=seq(1,10,1)
+        i=i+1
+}
+for (i in 13:16){
+        grs[,paste(names(grs)[i],'q',sep='_')]=cut(grs[,i],quantile(grs[,i],seq(0,1,0.125),na.rm=T),include.lowest=TRUE)
+        levels(grs[,paste(names(grs)[i],'q',sep='_')])=seq(1,8,1)
+        i=i+1
+}
+for (i in 17:20){
+        grs[,paste(names(grs)[i],'q',sep='_')]=cut(grs[,i],quantile(grs[,i],seq(0,1,0.25),na.rm=T),include.lowest=TRUE)
+        levels(grs[,paste(names(grs)[i],'q',sep='_')])=seq(1,4,1)
+        i=i+1
+}
+
 grsglm<-function(dataset,disease){
         
         results=array(NA,dim=c(24,7))
@@ -174,5 +192,140 @@ grsglm_group<-function(dataset,disease){
 
 grsglm_group(dataset = grs,disease = 'T2D')
 
+grsglm_group_ir<-function(dataset,disease){
+        
+        results=as.data.frame(array(NA,dim=c(12,7)))
+        for (i in 29:32){
+                gl<-summary(glm(dataset[,disease] ~dataset[,i] + 
+                                        dataset[,'sex'] + dataset[,'age'] + 
+                                        dataset[,'region'], family=binomial))
+                
+                results[(3*i-86):c(3*i-84),2:7]=as.data.frame(cbind(gl$coefficients[2:4,c(1,2,4)],exp(gl$coefficients[2:4,1]),exp(gl$coefficients[2:4,1]-gl$coefficients[2:4,2]*1.96),exp(gl$coefficients[2:4,1]+gl$coefficients[2:4,2]*1.96)))[1:3,1:6]
+                results[(3*i-86):c(3*i-84),1]=c(paste(names(grs)[i],seq(2,4,1),sep="_"))
+                i=i+1
+                
+        }
+        colnames(results)[]=c('GRS','Beta','Std.Error','P','OR','95%CI_LOW','95%CI_UP')
+        write.csv(results,paste('//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/','IR_Group',c(disease),'_association.csv',sep=''),row.names=F,quote=F)
+}
+grsglm_group_ir(dataset = grs,disease = 'T2D')
 
-write.csv(grsc,'//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/grs_score_clean.csv',row.names=F,quote=F,na='.')
+grsglm_group_b<-function(dataset,disease){
+        
+        results=as.data.frame(array(NA,dim=c(28,7)))
+        for (i in 25:28){
+                gl<-summary(glm(dataset[,disease] ~dataset[,i] + 
+                                        dataset[,'sex'] + dataset[,'age'] + 
+                                        dataset[,'region'], family=binomial))
+                
+                results[(7*i-174):c(7*i-168),2:7]=as.data.frame(cbind(gl$coefficients[2:8,c(1,2,4)],exp(gl$coefficients[2:8,1]),exp(gl$coefficients[2:8,1]-gl$coefficients[2:8,2]*1.96),exp(gl$coefficients[2:8,1]+gl$coefficients[2:8,2]*1.96)))[1:7,1:6]
+                results[(7*i-174):c(7*i-168),1]=c(paste(names(grs)[i],seq(2,8,1),sep="_"))
+                i=i+1
+                
+        }
+        colnames(results)[]=c('GRS','Beta','Std.Error','P','OR','95%CI_LOW','95%CI_UP')
+        write.csv(results,paste('//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/','b_Group',c(disease),'_association.csv',sep=''),row.names=F,quote=F)
+}
+grsglm_group_b(dataset = grs,disease = 'T2D')
+
+grsglm_group_t<-function(dataset,disease){
+        
+        results=as.data.frame(array(NA,dim=c(36,7)))
+        for (i in 21:24){
+                gl<-summary(glm(dataset[,disease] ~dataset[,i] + 
+                                        dataset[,'sex'] + dataset[,'age'] + 
+                                        dataset[,'region'], family=binomial))
+                
+                results[(9*i-188):c(9*i-180),2:7]=as.data.frame(cbind(gl$coefficients[2:10,c(1,2,4)],exp(gl$coefficients[2:10,1]),exp(gl$coefficients[2:10,1]-gl$coefficients[2:10,2]*1.96),exp(gl$coefficients[2:10,1]+gl$coefficients[2:10,2]*1.96)))[1:9,1:6]
+                results[(9*i-188):c(9*i-180),1]=c(paste(names(grs)[i],seq(2,10,1),sep="_"))
+                i=i+1
+                
+        }
+        colnames(results)[]=c('GRS','Beta','Std.Error','P','OR','95%CI_LOW','95%CI_UP')
+        write.csv(results,paste('//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/','t53_Group',c(disease),'_association.csv',sep=''),row.names=F,quote=F)
+}
+grsglm_group_t(dataset = grs,disease = 'T2D')
+
+
+#plot distribution of GRS and the ORs
+#grst53
+pdf(file='//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/Distribution of unweighted gene score and odds ratios for association with T2D.pdf',width =12,height =9)
+par(mfrow = c(2,2),new=F,mar = c(6,6,4,6))
+        #t53 <- read.table(file = "clipboard", sep = "\t", header=F)
+        
+        #t53$grs=c(tapply(grs$grst,grs$grst_q,mean))
+#par(mgp=c(4,0.5,0))
+hist(grs$grst,breaks=50,ylim=c(0,9000),ylab=NULL,xlab = NULL,bty='n',yaxt='n',xaxt='n',border = 'darkgrey',col='grey', las = 2,main = 'A',adj=0)
+axis(side = 2, at = c(seq(0,9000,3000)),labels=c(0,"3,000","6,000","9,000"),line=0,las=2,font.lab=2)
+axis(side = 1, at = c(36,42,48,54,60,66,73),labels=c(36,42,48,54,60,66,73),las=1,cex=0.5,font.lab=2)
+par(new=T)
+plot(t53$grs,t53$V4,xlim = c(min(grs$grst),max(grs$grst)),ylim=c(0,9000),yaxt="n",xaxt="n",ylab='',xlab ='',pch=18,bty='n',cex.lab=1.2,font.lab=2)
+arrows(t53[2:10,]$grs,t53[2:10,]$V5,t53[2:10,]$grs,t53[2:10,]$V6,length=0.05, angle=90, code=3,col='black',lty = 1,lwd=1)
+axis(4,at=c(0,1000,3000,5000,7000,9000),labels=c('','1.0','1.5','2.0','2.5','3.0'),line=0,font.lab=2)
+#text(t53$grs,t53$V4,label=round(t53$V1,2),pos = 4,cex=0.5)
+mtext("Odds Ratio", side=4, line=2.5,cex = 1,las=0,font = 2)
+mtext("GRS-t53", side=1, line=3,cex = 1,las=0,font = 2)
+mtext("Number of individuals", side=2, line=3.5,cex = 1,las=0,font = 2)
+mylabel=bquote(paste(italic(P),' for trend = 6.8×10') ^'-94')
+text(x=43,y=9000,labels=mylabel,cex=1)
+###BETA
+
+        #orbeta <- read.table(file = "clipboard", sep = "\t", header=F)
+        #orbeta$grs=c(tapply(grs$grsb,grs$grsb_q,mean))
+hist(grs$grsb,breaks=20,ylim=c(0,12500),ylab=NULL,xlab = NULL,bty='n',yaxt='n',xaxt='n',main='B',border = 'darkgrey',col='grey', las = 2,adj=0)
+axis(side = 2, at = c(seq(0,15000,4000)),labels=c(0,"4,000","8,000","12,000"),line=0,las=2)
+axis(side = 1, at = c(14,20,25,30,35,40),labels=c(14,20,25,30,35,40),las=1,cex=0.5)
+par(new=T)
+plot(orbeta$grs,orbeta$V4,xlim = c(min(grs$grsb),max(grs$grsb)),ylim=c(0,12500),yaxt="n",xaxt="n",ylab='',xlab ='',pch=18,bty='n',cex.lab=1.2,font.lab=2)
+arrows(orbeta[2:8,]$grs,orbeta[2:8,]$V5,orbeta[2:8,]$grs,orbeta[2:8,]$V6,length=0.05, angle=90, code=3,col='black',lty = 1,lwd=1)
+axis(4,at=c(0,seq(2000,12000,3000),12000),labels=c('','1.0','1.5','2.0','2.5',''),line=0,font.lab=2)
+#text(orbeta$grs,orbeta$V4,label=round(orbeta$V1,2),pos = 4,cex=0.5)
+mtext("Odds Ratio", side=4, line=2.5,las=0,cex=1,font = 2)
+mtext("GRS-BC", side=1, line=3,cex = 1,las=0,font = 2)
+mtext("Number of individuals", side=2, line=3.5,cex = 1,las=0,font = 2)
+mylabel=bquote(paste(italic(P),' for trend = 3.9×10') ^'-89')
+text(x=19,y=12000,labels=mylabel,cex=1)
+#IR
+        
+        #ir <- read.table(file = "clipboard", sep = "\t", header=F)
+        
+        #ir$grs=c(tapply(grs$grsir,grs$grsir_q,mean))
+hist(grs$grsir,breaks=10,ylim=c(0,30000),ylab=NULL,xlab = NULL,bty='n',yaxt='n',xaxt='n',main='C',border = 'darkgrey',col='grey', las = 2,adj=0)
+axis(side = 2, at = c(seq(0,30000,10000)),labels=c(0,"10,000","20,000","30,000"),line=-0.5,las=2)
+axis(side = 1, at = seq(2,12,2),labels=seq(2,12,2),las=1,cex=0.5)
+par(new=T)
+plot(ir$grs,ir$V4,xlim = c(min(grs$grsir),max(grs$grsir)),ylim=c(0,30000),yaxt="n",xaxt="n",ylab="",xlab = '',pch=18,bty='n',cex.lab=1.2,font.lab=2)
+arrows(ir[2:4,]$grs,ir[2:4,]$V5,ir[2:4,]$grs,ir[2:4,]$V6,length=0.05, angle=90, code=3,col='black',lty = 1,lwd=1)
+axis(4,at=c(0,seq(10000,30000,8000),30000),labels=c('','1.0','1.2','1.4',''),line=-0.5,font.lab=2)
+#text(ir$grs,ir$V4,label=round(ir$V1,2),pos = 4,cex=0.5)
+mtext("Odds Ratio", side=4, line=2,las=0,cex=1,font = 2)
+mtext("GRS-IR", side=1, line=3,cex = 1,las=0,font = 2)
+mtext("Number of individuals", side=2, line=3.5,cex = 1,las=0,font = 2)
+mylabel=bquote(paste(italic(P),' for trend = 2.9×10') ^'-6')
+text(x=4,y=30000,labels=mylabel,cex=1)
+
+
+#incidence <- read.table(file = "clipboard", sep = "\t", header=F)
+incidence$P=2*(pnorm(incidence$V10/incidence$V11,lower.tail = F))
+plot(incidence$V3,incidence$V8,pch=18,yaxt="n",xaxt="n",ylab="",xlab = '',cex.lab=1.2,font.lab=2,bty='n',xlim=c(-0.1,2.5),ylim=c(0,12.5),cex=1,main='D',adj=0)
+arrows(incidence$V3,incidence$V8,incidence$V4,incidence$V8,length=0.05, angle=90, code=3,col='black',lty = 1,lwd=1.2)
+arrows(incidence$V3,incidence$V8,incidence$V5,incidence$V8,length=0.05, angle=90, code=3,col='black',lty = 1,lwd=1.2)
+arrows(1,-1,1,12.2,length=0.05, angle=90, code=0)
+axis(side = 1, at = c(-0.1,0,0.5,1.0,1.5,2.0,2.5),labels=c('','0.0',0.5,'1.0',1.5,'2.0','2.5'),las=1,cex=0.5)
+text(x=-0.1,y=12.5,labels='Score',cex=0.8,font = 2)
+text(x=0.15,y=12.5,labels='Group',cex=0.8,font = 2)
+text(x=0.63,y=12.5,labels='Events/Subcohort',cex=0.8,font = 2)
+text(x=1.95,y=12.5,labels='HR [95%CI]',cex=0.8,font = 2)
+text(x=2.4,y=12.5,labels='P-value',cex=0.8,font = 2)
+text(x=-0.05,y=11.5,labels='GRS-t53',cex=0.7,font = 2)
+text(x=-0.05,y=8,labels='GRS-BC',cex=0.7,font = 2)
+text(x=-0.05,y=4,labels='GRS-IR',cex=0.7,font = 2)
+text(x=0.15,y=incidence$V8,labels=incidence$V9,cex=0.7 )
+text(x=0.62,y=incidence$V8,labels=incidence$V7,cex=0.7)
+text(x=1.95,y=incidence$V8,labels=incidence$V6,cex=0.7 )
+
+text(x=2.4,y=incidence$V8[c(-1,-4,-7)],labels=expression('2.9×10'^-5,'7.5×10'^-20,'0.49',
+                                             '0.01','1.5×10'^-7,'2.1×10'^-26),cex=0.7,font = 2)
+
+mtext("Hazard Ratio", side=1, line=3,cex = 1,las=0,font = 2)
+dev.off()
