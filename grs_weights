@@ -1,0 +1,90 @@
+phe=read.table('//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/CKB_CLEAN_Pheno.txt',header=T)
+phe$T2D=ifelse(phe$Pheno==1,0,ifelse(phe$Pheno==2,1,NA))
+grs=merge(phe,grsc2[,1:26],by=c('FID','IID'))
+
+#t2d_free=read.table('//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/t2d_free.txt',header=T)
+grs_t2dfree=merge(t2d_free,grsc2[,1:26],by=c('FID','IID'))
+for (i in 3:26){
+        grs_t2dfree[,paste(names(grs_t2dfree)[i],'q',sep='_')]=cut(grs_t2dfree[,i],quantile(grs_t2dfree[,i],c(0,0.333,0.666,1),na.rm=T),include.lowest=TRUE)
+        levels(grs_t2dfree[,paste(names(grs_t2dfree)[i],'q',sep='_')])=seq(1,3,1)
+        i=i+1
+}
+write.csv(grs_t2dfree,'//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/grs_score_clean_t2dfree.csv',row.names=F,quote=F,na='.')
+
+#quantile
+for (i in 10:17){
+        grs[,paste(names(grs)[i],'q',sep='_')]=cut(grs[,i],quantile(grs[,i],seq(0,1,0.1),na.rm=T),include.lowest=TRUE)
+        levels(grs[,paste(names(grs)[i],'q',sep='_')])=seq(1,10,1)
+        i=i+1
+}
+for (i in 18:25){
+        grs[,paste(names(grs)[i],'q',sep='_')]=cut(grs[,i],quantile(grs[,i],seq(0,1,0.125),na.rm=T),include.lowest=TRUE)
+        levels(grs[,paste(names(grs)[i],'q',sep='_')])=seq(1,8,1)
+        i=i+1
+}
+for (i in 26:33){
+        grs[,paste(names(grs)[i],'q',sep='_')]=cut(grs[,i],quantile(grs[,i],seq(0,1,0.25),na.rm=T),include.lowest=TRUE)
+        levels(grs[,paste(names(grs)[i],'q',sep='_')])=seq(1,4,1)
+        i=i+1
+}
+
+gl1=glm(grs[,'T2D'] ~scale(grs[,'grst']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl2=glm(grs[,'T2D'] ~scale(grs[,'agent']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl3=glm(grs[,'T2D'] ~scale(grs[,'metat']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl4=glm(grs[,'T2D'] ~scale(grs[,'diat']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl5=glm(grs[,'T2D'] ~scale(grs[,'tabot']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl6=glm(grs[,'T2D'] ~scale(grs[,'trant']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl7=glm(grs[,'T2D'] ~scale(grs[,'transt']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl8=glm(grs[,'T2D'] ~scale(grs[,'eaat']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+
+bict<-c(BIC(gl1),BIC(gl2),BIC(gl3),BIC(gl4),BIC(gl5),BIC(gl6),BIC(gl7),BIC(gl8))
+
+gl1=glm(grs[,'T2D'] ~scale(grs[,'grsb']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl2=glm(grs[,'T2D'] ~scale(grs[,'agenb']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl3=glm(grs[,'T2D'] ~scale(grs[,'metab']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl4=glm(grs[,'T2D'] ~scale(grs[,'diab']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl5=glm(grs[,'T2D'] ~scale(grs[,'tabob']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl6=glm(grs[,'T2D'] ~scale(grs[,'tranb']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl7=glm(grs[,'T2D'] ~scale(grs[,'transb']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl8=glm(grs[,'T2D'] ~scale(grs[,'eaab']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+
+bicb<-c(BIC(gl1),BIC(gl2),BIC(gl3),BIC(gl4),BIC(gl5),BIC(gl6),BIC(gl7),BIC(gl8))
+
+gl1=glm(grs[,'T2D'] ~scale(grs[,'grsir']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl2=glm(grs[,'T2D'] ~scale(grs[,'agenir']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl3=glm(grs[,'T2D'] ~scale(grs[,'metair']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl4=glm(grs[,'T2D'] ~scale(grs[,'diair']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl5=glm(grs[,'T2D'] ~scale(grs[,'taboir']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl6=glm(grs[,'T2D'] ~scale(grs[,'tranir']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl7=glm(grs[,'T2D'] ~scale(grs[,'transir']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+gl8=glm(grs[,'T2D'] ~scale(grs[,'eaair']) +grs[,'sex'] + grs[,'age'] + factor(grs[,'region']), family=binomial)
+
+bicir<-c(BIC(gl1),BIC(gl2),BIC(gl3),BIC(gl4),BIC(gl5),BIC(gl6),BIC(gl7),BIC(gl8))
+as.data.frame(c(bict,bicb,bicir))
+grsglm<-function(dataset,disease){
+        
+        results=array(NA,dim=c(48,7))
+        for (i in 10:57){
+                gl<-summary(glm(dataset[,disease] ~as.numeric(dataset[,i]) + 
+                                        dataset[,'sex'] + dataset[,'age'] + 
+                                        factor(dataset[,'region']), family=binomial))
+                results[i-9,]=c(names(dataset)[i],round(gl$coefficients[2,1:2],4),
+                                round(exp(gl$coefficients[2,1]+0),4), 
+                                round(exp(gl$coefficients[2,1]-gl$coefficients[2,2]*1.96),4),
+                                round(exp(gl$coefficients[2,1]+gl$coefficients[2,2]*1.96),4),
+                                gl$coefficients[2,4])
+                i=i+1
+        }
+        results=as.data.frame(results)
+        colnames(results)[]=c('GRS','Beta','Std.Error','OR','95%CI_LOW','95%CI_UP','P')
+        write.csv(results,paste('//10.141.0.2/Kadoorie/weigan/T2D_REPLICATION/',c(disease),'_association_same_scale.csv',sep=''),row.names=F,quote=F)
+}
+
+grsglm(dataset = grs,disease = 'T2D')
+
+
+stat<-as.data.frame(array(NA,dim=c(24,5)))
+for(i in 3:26){
+        stat[i,1:5]=c(names(grsc2)[i],mean(grsc2[,i]),sd(grsc2[,i]),min(grsc2[,i]),max(grsc2[,i]))
+        i=i+1
+}
